@@ -21,37 +21,33 @@ import {
   RadioGroup,
   FormControlLabel,
 } from '@mui/material'
-import { fetchAccountsApi, fetchAccountDetailApi } from '../../apis/accountApi'
+import {
+  createAccountApi,
+  fetchAccountsApi,
+  fetchAccountDetailApi,
+  updateAccountApi,
+} from '../../apis/accountApi'
 
 interface AccountRow {
-  no: number
   acId: number
-  name: string
-  loginId?: string
-  loginPw?: string | null
-  priority: '상' | '중' | '하'
-  enabled: boolean
+  acSubject: string
+  acLoginId?: string
+  acLoginPw?: string | null
+  acMemo?: string | null
+  sortNo: number
+  acLevel: number
+  useFlag: number
+  delFlag: number
   createdAt: string
   updatedAt: string
 }
+
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AccountRow[]>([])
   const [selectedAccount, setSelectedAccount] = useState<AccountRow | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
-  const [createOpen, setCreateOpen] = useState(false)
-  const [createForm, setCreateForm] = useState({
-    acSubject: '',
-    acLoginId: '',
-    acLoginPw: '',
-    acMemo: '',
-    sortNo: '',
-    acLevel: '',
-    delFlag: '',
-    acId: '',
-    createdAt: '',
-    updatedAt: '',
-  })
+  const [dialogMode, setDialogMode] = useState<'detail' | 'create'>('detail')
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -59,20 +55,19 @@ export default function AccountsPage() {
         const data = await fetchAccountsApi()
 
         const mapped: AccountRow[] = data.map((item) => {
-          let priority: AccountRow['priority'] = '중'
-          if (item.acLevel === 1) priority = '상'
-          else if (item.acLevel === 3) priority = '하'
-
           const dateOnly = item.createdAt?.slice(0, 10) ?? ''
 
           return {
-            no: item.sortNo ?? item.acId,
+            sortNo: item.sortNo ?? item.acId,
             acId: item.acId,
-            name: item.acSubject || item.acLoginId,
-            loginId: item.acLoginId,
-            loginPw: item.acLoginPw,
-            priority,
-            enabled: !item.delFlag,
+            acMemo: item.acMemo,
+            acSubject: item.acSubject,
+            acLoginId: item.acLoginId,
+            acLoginPw: item.acLoginPw,
+            acLevel: item.acLevel ?? 0,
+            // delFlag가 0이면 사용, 1이면 미사용이라고 가정
+            useFlag: item.delFlag ? 0 : 1,
+            delFlag: item.delFlag ?? 0,
             createdAt: dateOnly,
             // 수정일 필드가 없으므로 일단 등록일과 동일하게 표시
             updatedAt: dateOnly,
@@ -89,27 +84,25 @@ export default function AccountsPage() {
   }, [])
 
   const handleOpenDetail = async (row: AccountRow) => {
+    setDialogMode('detail')
     // 먼저 목록에서 선택한 데이터로 표시
     setSelectedAccount(row)
     setDetailOpen(true)
 
     try {
       const detail = await fetchAccountDetailApi(row.acId)
-
-      let priority: AccountRow['priority'] = '중'
-      if (detail.acLevel === 1) priority = '상'
-      else if (detail.acLevel === 3) priority = '하'
-
       const dateOnly = detail.createdAt?.slice(0, 10) ?? ''
 
       const mappedDetail: AccountRow = {
-        no: detail.sortNo ?? detail.acId,
+        sortNo: detail.sortNo ?? detail.acId,
         acId: detail.acId,
-        name: detail.acSubject || detail.acLoginId,
-        loginId: detail.acLoginId,
-        loginPw: detail.acLoginPw,
-        priority,
-        enabled: !detail.delFlag,
+        acMemo: detail.acMemo,
+        acSubject: detail.acSubject,
+        acLoginId: detail.acLoginId,
+        acLoginPw: detail.acLoginPw,
+        acLevel: detail.acLevel ?? 0,
+        useFlag: detail.delFlag ? 0 : 1,
+        delFlag: detail.delFlag ?? 0,
         createdAt: dateOnly,
         updatedAt: dateOnly,
       }
@@ -124,24 +117,55 @@ export default function AccountsPage() {
     setDetailOpen(false)
   }
 
+  const handleSaveDetail = async () => {
+    if (!selectedAccount) return
+
+    try {
+      const upsertPayload = {
+        ac_subject: selectedAccount.acSubject,
+        ac_login_id: selectedAccount.acLoginId ?? '',
+        ac_login_pw: selectedAccount.acLoginPw ?? null,
+        ac_memo: selectedAccount.acMemo ?? null,
+        sort_no: selectedAccount.sortNo,
+        ac_level: selectedAccount.acLevel,
+        // useFlag가 1이면 사용(delFlag 0), 0이면 미사용(delFlag 1)으로 전송
+        del_flag: selectedAccount.useFlag ? 0 : 1,
+        created_at: selectedAccount.createdAt,
+      }
+
+      if (dialogMode === 'create') {
+        await createAccountApi(upsertPayload)
+      } else {
+        await updateAccountApi(selectedAccount.acId, { ac_id: selectedAccount.acId, ...upsertPayload })
+      }
+
+      // 목록 상태도 함께 갱신
+      setAccounts((prev) =>
+        prev.map((item) => (item.acId === selectedAccount.acId ? { ...item, ...selectedAccount } : item)),
+      )
+
+      setDetailOpen(false)
+    } catch (error) {
+      console.error('계정 수정 중 오류가 발생했습니다:', error)
+    }
+  }
+
   const handleOpenCreate = () => {
-    setCreateForm({
+    setDialogMode('create')
+    setSelectedAccount({
+      acId: 0,
       acSubject: '',
       acLoginId: '',
-      acLoginPw: '',
-      acMemo: '',
-      sortNo: '',
-      acLevel: '',
-      delFlag: '',
-      acId: '',
+      acLoginPw: null,
+      acMemo: null,
+      sortNo: 0,
+      acLevel: 2,
+      useFlag: 1,
+      delFlag: 0,
       createdAt: '',
       updatedAt: '',
     })
-    setCreateOpen(true)
-  }
-
-  const handleCloseCreate = () => {
-    setCreateOpen(false)
+    setDetailOpen(true)
   }
 
   return (
@@ -190,6 +214,7 @@ export default function AccountsPage() {
                   NO
                 </TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>계정명</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>아이디</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>
                   중요도
                 </TableCell>
@@ -206,16 +231,17 @@ export default function AccountsPage() {
             </TableHead>
             <TableBody>
               {accounts.map((row) => (
-                <TableRow key={row.no} hover>
-                  <TableCell align="center">{row.no}</TableCell>
+                <TableRow key={row.acId} hover>
+                  <TableCell align="center">{row.acId}</TableCell>
                   <TableCell
                     onClick={() => handleOpenDetail(row)}
-                    sx={{ cursor: 'pointer', color: 'primary.main', fontWeight: 500 }}
+                    sx={{ cursor: 'pointer', color: 'primary.main', fontWeight: 600 }}
                   >
-                    {row.name}
+                    {row.acSubject}
                   </TableCell>
-                  <TableCell align="center">{row.priority}</TableCell>
-                  <TableCell align="center">{row.enabled ? '사용' : '미사용'}</TableCell>
+                  <TableCell align="center">{row.acLoginId}</TableCell>
+                  <TableCell align="center">{row.acLevel}</TableCell>
+                  <TableCell align="center">{row.useFlag ? '사용' : '미사용'}</TableCell>
                   <TableCell align="center">{row.createdAt}</TableCell>
                   <TableCell align="center">{row.updatedAt}</TableCell>
                 </TableRow>
@@ -224,160 +250,23 @@ export default function AccountsPage() {
           </Table>
         </Paper>
 
-        {/* 등록 팝업 */}
-        <Dialog open={createOpen} onClose={handleCloseCreate} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ fontWeight: 600 }}>계정 등록</DialogTitle>
-          <DialogContent dividers sx={{ pt: 3 }}>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-                기본 정보
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                새로운 계정의 기본 정보를 입력하세요.
-              </Typography>
-            </Box>
+        {/* 등록 팝업: 상세 팝업(Dialog) 재사용 */}
 
-            <Stack spacing={2.5}>
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                  계정명
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="e.g. 네이버"
-                  value={createForm.acSubject}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, acSubject: e.target.value }))}
-                  InputProps={{
-                    sx: { backgroundColor: 'grey.50' },
-                  }}
-                />
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                  계정 ID
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="e.g. paksungju"
-                  value={createForm.acLoginId}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, acLoginId: e.target.value }))}
-                  InputProps={{
-                    sx: { backgroundColor: 'grey.50' },
-                  }}
-                />
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                  계정 비밀번호
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="password"
-                  placeholder="비밀번호를 입력하세요"
-                  value={createForm.acLoginPw}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, acLoginPw: e.target.value }))}
-                  InputProps={{
-                    sx: { backgroundColor: 'grey.50' },
-                  }}
-                />
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                  중요도
-                </Typography>
-                <Select
-                  fullWidth
-                  size="small"
-                  displayEmpty
-                  value={createForm.acLevel}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, acLevel: e.target.value as string }))}
-                  sx={{ backgroundColor: 'grey.50' }}
-                >
-                  <MenuItem value="">
-                    <em>중요도 선택</em>
-                  </MenuItem>
-                  <MenuItem value="상">상</MenuItem>
-                  <MenuItem value="중">중</MenuItem>
-                  <MenuItem value="하">하</MenuItem>
-                </Select>
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                  사용여부
-                </Typography>
-                <RadioGroup
-                  row
-                  value={createForm.delFlag}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, delFlag: e.target.value }))}
-                >
-                  <FormControlLabel
-                    value="N"
-                    control={<Radio size="small" />}
-                    label="사용"
-                  />
-                  <FormControlLabel
-                    value="Y"
-                    control={<Radio size="small" />}
-                    label="미사용"
-                  />
-                </RadioGroup>
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                  등록일
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="YYYY-MM-DD"
-                  value={createForm.createdAt}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, createdAt: e.target.value }))}
-                  InputProps={{
-                    sx: { backgroundColor: 'grey.50' },
-                  }}
-                />
-              </Box>
-
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                  수정일
-                </Typography>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="YYYY-MM-DD"
-                  value={createForm.updatedAt}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, updatedAt: e.target.value }))}
-                  InputProps={{
-                    sx: { backgroundColor: 'grey.50' },
-                  }}
-                />
-              </Box>
-            </Stack>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%', gap: 1.5 }}>
-              <Button onClick={handleCloseCreate} color="inherit">
-                취소
-              </Button>
-              <Button onClick={handleCloseCreate} variant="contained" color="primary">
-                저장
-              </Button>
-            </Box>
-          </DialogActions>
-        </Dialog>
-
-        {/* 상세 팝업 */}
-        <Dialog open={detailOpen} onClose={handleCloseDetail} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{ fontWeight: 600 }}>계정 상세</DialogTitle>
+        {/* 상세/등록 팝업 (공용) */}
+        <Dialog
+          open={detailOpen}
+          onClose={(_, reason) => {
+            // 팝업 밖 클릭/ESC로 닫기 금지
+            if (reason === 'backdropClick' || reason === 'escapeKeyDown') return
+            handleCloseDetail()
+          }}
+          disableEscapeKeyDown
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontWeight: 600 }}>
+            {dialogMode === 'create' ? '계정 등록' : '계정 상세'}
+          </DialogTitle>
           <DialogContent dividers sx={{ pt: 3 }}>
             {selectedAccount && (
               <>
@@ -391,14 +280,14 @@ export default function AccountsPage() {
                 </Box>
 
                 <Stack spacing={2.5}>
-                  <Box>
+                  <Box sx={{ display: 'none' }}>
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                       NO
                     </Typography>
                     <TextField
                       fullWidth
                       size="small"
-                      value={selectedAccount.no}
+                      value={selectedAccount.acId}
                       InputProps={{
                         readOnly: true,
                         sx: { backgroundColor: 'grey.50' },
@@ -413,26 +302,57 @@ export default function AccountsPage() {
                     <TextField
                       fullWidth
                       size="small"
-                      value={selectedAccount.name}
+                      value={selectedAccount.acSubject}
+                      onChange={(e) =>
+                        setSelectedAccount((prev) =>
+                          prev ? { ...prev, acSubject: e.target.value } : prev,
+                        )
+                      }
                       InputProps={{
                         sx: { backgroundColor: 'grey.50' },
                       }}
                     />
                   </Box>
 
-                  <Box>
+                  {dialogMode === 'create' ? (
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                        계정 ID
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={selectedAccount.acLoginId ?? ''}
+                        onChange={(e) =>
+                          setSelectedAccount((prev) =>
+                            prev ? { ...prev, acLoginId: e.target.value } : prev,
+                          )
+                        }
+                        InputProps={{
+                          sx: { backgroundColor: 'grey.50' },
+                        }}
+                      />
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'none' }}>
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                       계정 ID
                     </Typography>
                     <TextField
                       fullWidth
                       size="small"
-                      value={selectedAccount.loginId ?? ''}
+                      value={selectedAccount.acLoginId ?? ''}
+                      onChange={(e) =>
+                        setSelectedAccount((prev) =>
+                          prev ? { ...prev, acLoginId: e.target.value } : prev,
+                        )
+                      }
                       InputProps={{
                         sx: { backgroundColor: 'grey.50' },
                       }}
                     />
-                  </Box>
+                    </Box>
+                  )}
 
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
@@ -442,7 +362,12 @@ export default function AccountsPage() {
                       fullWidth
                       size="small"
                       type="password"
-                      value={selectedAccount.loginPw ?? ''}
+                      value={selectedAccount.acLoginPw ?? ''}
+                      onChange={(e) =>
+                        setSelectedAccount((prev) =>
+                          prev ? { ...prev, acLoginPw: e.target.value } : prev,
+                        )
+                      }
                       InputProps={{
                         sx: { backgroundColor: 'grey.50' },
                       }}
@@ -456,17 +381,17 @@ export default function AccountsPage() {
                     <Select
                       fullWidth
                       size="small"
-                      value={selectedAccount.priority}
+                      value={selectedAccount.acLevel}
                       onChange={(e) =>
                         setSelectedAccount((prev) =>
-                          prev ? { ...prev, priority: e.target.value as AccountRow['priority'] } : prev,
+                          prev ? { ...prev, acLevel: Number(e.target.value) } : prev,
                         )
                       }
                       sx={{ backgroundColor: 'grey.50' }}
                     >
-                      <MenuItem value="상">상</MenuItem>
-                      <MenuItem value="중">중</MenuItem>
-                      <MenuItem value="하">하</MenuItem>
+                      <MenuItem value={3}>상</MenuItem>
+                      <MenuItem value={2}>중</MenuItem>
+                      <MenuItem value={1}>하</MenuItem>
                     </Select>
                   </Box>
 
@@ -476,20 +401,20 @@ export default function AccountsPage() {
                     </Typography>
                     <RadioGroup
                       row
-                      value={selectedAccount.enabled ? 'N' : 'Y'}
+                      value={selectedAccount.useFlag ? '1' : '0'}
                       onChange={(e) =>
                         setSelectedAccount((prev) =>
-                          prev ? { ...prev, enabled: e.target.value === 'N' } : prev,
+                          prev ? { ...prev, useFlag: e.target.value === '1' ? 1 : 0 } : prev,
                         )
                       }
                     >
                       <FormControlLabel
-                        value="N"
+                        value="1"
                         control={<Radio size="small" />}
                         label="사용"
                       />
                       <FormControlLabel
-                        value="Y"
+                        value="0"
                         control={<Radio size="small" />}
                         label="미사용"
                       />
@@ -528,9 +453,12 @@ export default function AccountsPage() {
             )}
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-              <Button onClick={handleCloseDetail} variant="contained" color="primary">
-                닫기
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%', gap: 1.5 }}>
+              <Button onClick={handleCloseDetail} color="inherit">
+                {dialogMode === 'create' ? '취소' : '닫기'}
+              </Button>
+              <Button onClick={handleSaveDetail} variant="contained" color="primary">
+                저장
               </Button>
             </Box>
           </DialogActions>
