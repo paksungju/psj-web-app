@@ -21,6 +21,8 @@ import HistoryIcon from '@mui/icons-material/History'
 import GalleryIcon from '@mui/icons-material/Collections'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PersonIcon from '@mui/icons-material/Person'
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
+import InfoIcon from '@mui/icons-material/Info'
 import MenuIcon from '@mui/icons-material/Menu'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -38,6 +40,8 @@ const menuItems = [
   { id: 'history', label: '히스토리', icon: <HistoryIcon /> },
   { id: 'gallery', label: '겔러리', icon: <GalleryIcon /> },
   { id: 'profile', label: '프로필', icon: <PersonIcon /> },
+  { id: 'my-finance', label: '마이금융', icon: <AttachMoneyIcon /> },
+  { id: 'info-manage', label: '정보관리', icon: <InfoIcon /> },
   {
     id: 'apps',
     label: 'Apps',

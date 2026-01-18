@@ -8,6 +8,7 @@ import HomeScreen from './components/HomeScreen'
 import ChatPage from './pages/chating/index'
 import GalleryPage from './pages/gallery'
 import AccountsPage from './pages/accounts'
+import LoginPage from './pages/login'
 
 const theme = createTheme({
   palette: {
@@ -113,6 +114,7 @@ function AppContent() {
             }}
           >
             <Routes>
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/gallery" element={<GalleryPage />} />
               <Route path="/apps-accounts" element={<AccountsPage />} />

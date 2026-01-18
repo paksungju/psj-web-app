@@ -62,7 +62,7 @@ export async function updateAccountApi(acId: number, payload: ApiAccountUpdatePa
 }
 
 export async function createAccountApi(payload: ApiAccountUpdatePayload): Promise<ApiAccount> {
-  const response = await fetch(`http://impsj.net/api/v1/accounts/`, {
+  const response = await fetch(`http://impsj.net/api/v1/accounts/insert`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

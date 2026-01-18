@@ -83,6 +83,8 @@ export default function AccountsPage() {
     fetchAccounts()
   }, [])
 
+
+  // 계정 상세 팝업
   const handleOpenDetail = async (row: AccountRow) => {
     setDialogMode('detail')
     // 먼저 목록에서 선택한 데이터로 표시
@@ -117,8 +119,20 @@ export default function AccountsPage() {
     setDetailOpen(false)
   }
 
+  // 단건 수정하기
   const handleSaveDetail = async () => {
     if (!selectedAccount) return
+
+    // 필수값 체크
+    if (!selectedAccount.acSubject || !selectedAccount.acSubject.trim()) {
+      alert('계정명은 필수입니다.')
+      return
+    }
+
+    if (!selectedAccount.acLoginId || !selectedAccount.acLoginId.trim()) {
+      alert('계정 아이디는 필수입니다.')
+      return
+    }
 
     try {
       const upsertPayload = {
@@ -150,6 +164,7 @@ export default function AccountsPage() {
     }
   }
 
+  // 계정 등록 팝업
   const handleOpenCreate = () => {
     setDialogMode('create')
     setSelectedAccount({
@@ -213,8 +228,8 @@ export default function AccountsPage() {
                 <TableCell align="center" sx={{ fontWeight: 600, width: 60 }}>
                   NO
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>계정명</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>아이디</TableCell>
+                <TableCell sx={{ fontWeight: 600,width: 100  }}>계정명</TableCell>
+                <TableCell sx={{ fontWeight: 600,width: 100  }}>아이디</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>
                   중요도
                 </TableCell>
@@ -270,14 +285,14 @@ export default function AccountsPage() {
           <DialogContent dividers sx={{ pt: 3 }}>
             {selectedAccount && (
               <>
-                <Box sx={{ mb: 3 }}>
+                {/* <Box sx={{ mb: 3 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
                     기본 정보
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     선택한 계정의 정보를 확인하고 수정할 수 있습니다.
                   </Typography>
-                </Box>
+                </Box> */}
 
                 <Stack spacing={2.5}>
                   <Box sx={{ display: 'none' }}>
@@ -314,27 +329,7 @@ export default function AccountsPage() {
                     />
                   </Box>
 
-                  {dialogMode === 'create' ? (
                     <Box>
-                      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                        계정 ID
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        value={selectedAccount.acLoginId ?? ''}
-                        onChange={(e) =>
-                          setSelectedAccount((prev) =>
-                            prev ? { ...prev, acLoginId: e.target.value } : prev,
-                          )
-                        }
-                        InputProps={{
-                          sx: { backgroundColor: 'grey.50' },
-                        }}
-                      />
-                    </Box>
-                  ) : (
-                    <Box sx={{ display: 'none' }}>
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                       계정 ID
                     </Typography>
@@ -352,7 +347,6 @@ export default function AccountsPage() {
                       }}
                     />
                     </Box>
-                  )}
 
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
@@ -366,6 +360,28 @@ export default function AccountsPage() {
                       onChange={(e) =>
                         setSelectedAccount((prev) =>
                           prev ? { ...prev, acLoginPw: e.target.value } : prev,
+                        )
+                      }
+                      InputProps={{
+                        sx: { backgroundColor: 'grey.50' },
+                      }}
+                    />
+                  </Box>
+
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                      메모
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      multiline
+                      minRows={3}
+                      maxRows={6}
+                      value={selectedAccount.acMemo ?? ''}
+                      onChange={(e) =>
+                        setSelectedAccount((prev) =>
+                          prev ? { ...prev, acMemo: e.target.value } : prev,
                         )
                       }
                       InputProps={{
@@ -420,7 +436,7 @@ export default function AccountsPage() {
                       />
                     </RadioGroup>
                   </Box>
-
+{/* 
                   <Box>
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                       등록일
@@ -447,14 +463,23 @@ export default function AccountsPage() {
                         sx: { backgroundColor: 'grey.50' },
                       }}
                     />
-                  </Box>
+                  </Box> */}
                 </Stack>
               </>
             )}
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%', gap: 1.5 }}>
-              <Button onClick={handleCloseDetail} color="inherit">
+              <Button
+                onClick={handleCloseDetail}
+                color="inherit"
+                sx={{
+                  backgroundColor: 'grey.100',
+                  '&:hover': {
+                    backgroundColor: 'grey.200',
+                  },
+                }}
+              >
                 {dialogMode === 'create' ? '취소' : '닫기'}
               </Button>
               <Button onClick={handleSaveDetail} variant="contained" color="primary">
