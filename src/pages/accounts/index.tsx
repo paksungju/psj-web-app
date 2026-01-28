@@ -21,6 +21,7 @@ import {
   RadioGroup,
   FormControlLabel,
 } from '@mui/material'
+import TopBar from '../../components/TopBar'
 import {
   createAccountApi,
   fetchAccountsApi,
@@ -191,6 +192,7 @@ export default function AccountsPage() {
         p: 3,
       }}
     >
+      <TopBar />
       <Paper
         elevation={0}
         sx={{

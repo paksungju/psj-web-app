@@ -5,10 +5,11 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import MenuIcon from '@mui/icons-material/Menu'
 import Sidebar from './components/Sidebar'
 import HomeScreen from './components/HomeScreen'
-import ChatPage from './pages/chating/index'
+import ChatPage from './pages/chating'
 import GalleryPage from './pages/gallery'
 import AccountsPage from './pages/accounts'
 import LoginPage from './pages/login'
+import SearchPage from './pages/search'
 
 const theme = createTheme({
   palette: {
@@ -117,6 +118,7 @@ function AppContent() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/gallery" element={<GalleryPage />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/apps-accounts" element={<AccountsPage />} />
               <Route path="*" element={<HomeScreen selectedMenu={selectedMenu} />} />
             </Routes>

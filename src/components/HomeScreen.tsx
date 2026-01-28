@@ -5,6 +5,7 @@ import HistoryIcon from '@mui/icons-material/History'
 import PersonIcon from '@mui/icons-material/Person'
 import SettingsIcon from '@mui/icons-material/Settings'
 import CalendarPage from '../pages/calendar/iindex'
+import TopBar from './TopBar'
 
 interface HomeScreenProps {
   selectedMenu: string
@@ -43,7 +44,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
     return <CalendarPage />
   }
 
-  const content = menuContent[selectedMenu] || menuContent.home
+  const content = (menuContent[selectedMenu] ?? menuContent.home)!
 
   return (
     <Box
@@ -53,6 +54,9 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
         p: 3,
       }}
     >
+      {/* 상단 공통 검색/빠른 이동 바 */}
+      <TopBar />
+
       <Paper
         elevation={0}
         sx={{
@@ -68,7 +72,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '60vh',
+            minHeight: '55vh',
             textAlign: 'center',
           }}
         >

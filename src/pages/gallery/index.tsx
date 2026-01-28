@@ -9,6 +9,7 @@ import {
   CardContent,
   Chip,
 } from '@mui/material'
+import TopBar from '../../components/TopBar'
 
 const mockItems = [
   {
@@ -50,6 +51,7 @@ export default function GalleryPage() {
         p: 3,
       }}
     >
+      <TopBar />
       <Paper
         elevation={0}
         sx={{
