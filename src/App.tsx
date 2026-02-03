@@ -40,6 +40,8 @@ function AppContent() {
       setSelectedMenu('chat')
     } else if (location.pathname === '/gallery') {
       setSelectedMenu('gallery')
+    } else if (location.pathname === '/search') {
+      setSelectedMenu('search')
     } else if (location.pathname === '/apps-accounts') {
       setSelectedMenu('apps-accounts')
     }
@@ -53,6 +55,8 @@ function AppContent() {
       navigate('/chat')
     } else if (menuId === 'gallery') {
       navigate('/gallery')
+    } else if (menuId === 'search') {
+      navigate('/search')
     } else if (menuId === 'apps-accounts') {
       navigate('/apps-accounts')
     } else {

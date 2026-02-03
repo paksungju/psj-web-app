@@ -23,6 +23,7 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import PersonIcon from '@mui/icons-material/Person'
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
 import InfoIcon from '@mui/icons-material/Info'
+import SearchIcon from '@mui/icons-material/Search'
 import MenuIcon from '@mui/icons-material/Menu'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -36,6 +37,7 @@ interface SidebarProps {
 
 const menuItems = [
   { id: 'home', label: '홈', icon: <HomeIcon /> },
+  { id: 'search', label: '검색', icon: <SearchIcon /> },
   { id: 'chat', label: '채팅', icon: <ChatIcon /> },
   { id: 'history', label: '히스토리', icon: <HistoryIcon /> },
   { id: 'gallery', label: '겔러리', icon: <GalleryIcon /> },

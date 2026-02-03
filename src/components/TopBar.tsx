@@ -59,16 +59,22 @@ export default function TopBar() {
   return (
     <Box
       sx={{
+        position: 'sticky',
+        top: 0,
+        zIndex: (theme) => theme.zIndex.appBar,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         mb: 4,
         gap: 2,
+        bgcolor: 'background.paper',
       }}
     >
+      {/* 검색 영역 블럭 */}
       <Box
         sx={{
-          flex: 1,
+          //flex: 1,
+          width: '60%',
           display: 'flex',
           alignItems: 'center',
           gap: 1.5,
@@ -82,7 +88,7 @@ export default function TopBar() {
       >
         <SearchIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
         <InputBase
-          sx={{ width: '60%', fontSize: 14 }}
+          sx={{ width: '100%', fontSize: 14 }}
           placeholder="Ctrl+G 키를 눌러 채팅 또는 채널로 바로 이동하기"
           inputProps={{ 'aria-label': 'global quick search' }}
           value={keyword}
@@ -90,41 +96,51 @@ export default function TopBar() {
           onKeyDown={handleSearchKeyDown}
         />
       </Box>
-      <IconButton
-        size="small"
+
+      {/* ... 버튼 / 아바타 영역 블럭 */}
+      <Box
         sx={{
-          color: 'text.secondary',
-        }}
-        onClick={handleMenuOpen}
-      >
-        <MoreHorizIcon />
-      </IconButton>
-      <Menu
-        anchorEl={menuAnchorEl}
-        open={menuOpen}
-        onClose={handleMenuClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'right',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
         }}
       >
-        <MenuItem onClick={handleUserInfo}>사용자 정보</MenuItem>
-        <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
-      </Menu>
-      <Avatar
-        sx={{
-          width: 32,
-          height: 32,
-          fontSize: 14,
-          bgcolor: 'primary.main',
-        }}
-      >
-        PS
-      </Avatar>
+        <IconButton
+          size="small"
+          sx={{
+            color: 'text.secondary',
+          }}
+          onClick={handleMenuOpen}
+        >
+          <MoreHorizIcon />
+        </IconButton>
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={menuOpen}
+          onClose={handleMenuClose}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+        >
+          <MenuItem onClick={handleUserInfo}>사용자 정보</MenuItem>
+          <MenuItem onClick={handleLogout}>로그아웃</MenuItem>
+        </Menu>
+        <Avatar
+          sx={{
+            width: 32,
+            height: 32,
+            fontSize: 14,
+            bgcolor: 'primary.main',
+          }}
+        >
+          PS
+        </Avatar>
+      </Box>
     </Box>
   )
 }

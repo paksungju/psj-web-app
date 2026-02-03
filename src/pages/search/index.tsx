@@ -61,30 +61,19 @@ export default function SearchPage() {
   const location = useLocation()
 
   const [searches, setSearches] = useState<ApiSearch[]>([])
-  const [keyword, setKeyword] = useState('')
-  const [selectedSearch, setSelectedSearch] = useState<ApiSearch | null>(null)
-  const [detailOpen, setDetailOpen] = useState(false)
-  const [dialogMode, setDialogMode] = useState<'detail' | 'create'>('detail')
-
-  // URL 쿼리의 keyword를 상태와 동기화 (초기 진입 + /search 내 재검색 모두 대응)
-  useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const kw = params.get('keyword') ?? ''
-    if (kw !== keyword) {
-      setKeyword(kw)
-    }
-  }, [location.search, keyword])
 
   useEffect(() => {
     const fetchSearch = async () => {
       try {
-        const data = await fetchSearchApi(keyword ?? '')
+        const params = new URLSearchParams(location.search)
+        const kw = params.get('keyword') ?? ''
+
+        const data = await fetchSearchApi(kw)
 
         const mapped: SearchRow[] = data.map((item) => {
           const dateOnly = item.regist_dt?.slice(0, 10) ?? ''
 
           return {
-
             sid: item.sid,
             tb_name: item.tb_name,
             tb_id: item.tb_id,
@@ -99,12 +88,12 @@ export default function SearchPage() {
 
         setSearches(mapped)
       } catch (error) {
-        console.error('계정 목록을 불러오는 중 오류가 발생했습니다:', error)
+        console.error('검색 데이터를 불러오는 중 오류가 발생했습니다:', error)
       }
     }
 
     fetchSearch()
-  }, [keyword])
+  }, [location.search])
 
 
 
@@ -146,46 +135,58 @@ export default function SearchPage() {
           variant="outlined"
           sx={{
             borderRadius: 2,
-            overflow: 'hidden',
+            p: 2,
           }}
         >
-          <Table size="small">
-            <TableHead>
-              <TableRow
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
+            {searches.map((row) => (
+              <Box
+                key={row.sid}
                 sx={{
-                  backgroundColor: '#f5f7fb',
+                  cursor: 'pointer',
                 }}
+                onClick={() => window.open(row.url, '_blank')}
               >
-                <TableCell align="center" sx={{ fontWeight: 600, width: 60 }}>
-                  NO
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 200 }}>제목</TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 140 }}>테이블명</TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 100 }}>대상 ID</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>URL</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 600, width: 140 }}>
-                  등록일
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {searches.map((row) => (
-                <TableRow key={row.sid} hover>
-                  <TableCell align="center">{row.sid}</TableCell>
-                  <TableCell
-                    onClick={() => window.open(row.url, '_blank')}
-                    sx={{ cursor: 'pointer', color: 'primary.main', fontWeight: 600 }}
-                  >
-                    {row.subject}
-                  </TableCell>
-                  <TableCell>{row.tb_name}</TableCell>
-                  <TableCell align="center">{row.tb_id}</TableCell>
-                  <TableCell>{row.url}</TableCell>
-                  <TableCell align="center">{row.regist_dt}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                {/* 상단 URL / 도메인 영역 */}
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 0.5 }}
+                >
+                  {row.url}
+                </Typography>
+
+                {/* 제목 영역 (파란색 링크 스타일) */}
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    color: '#1a0dab',
+                    fontWeight: 500,
+                    mb: 0.25,
+                    '&:hover': {
+                      textDecoration: 'underline',
+                    },
+                  }}
+                >
+                  {row.subject}
+                </Typography>
+
+                {/* 설명 / 메타 정보 영역 */}
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                >
+                  {row.tb_name} · ID {row.tb_id} · {row.regist_dt?.slice(0, 10)}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         </Paper>
 
        
