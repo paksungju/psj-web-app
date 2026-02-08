@@ -2,70 +2,53 @@ import { useState } from 'react'
 import {
   Box,
   Paper,
-  Typography,
   TextField,
   Button,
-  Stack,
+  Typography,
+  CircularProgress,
 } from '@mui/material'
-import { useLocation, useNavigate } from 'react-router-dom'
-
-const LOGIN_API_URL = 'http://impsj.net/api/v1/users/login'
-
-interface LoginFormValues {
-  username: string
-  password: string
-}
+import { useNavigate } from 'react-router-dom'
 
 export default function LoginPage() {
   const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const location = useLocation()
-  const from = (location.state as any)?.from?.pathname || '/'
 
-  const handleFinish = async (values: LoginFormValues) => {
-    setLoading(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!loginId || !password) {
+      window.alert('아이디와 비밀번호를 입력해 주세요.')
+      return
+    }
+
     try {
-      const response = await fetch(LOGIN_API_URL, {
+      setLoading(true)
+      const res = await fetch('http://impsj.net/api/v1/users/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        // OAuth2 password 그랜트 표준 스펙에 맞게 grant_type 추가
-        body: new URLSearchParams({
-          grant_type: 'password',
-          username: values.username,
-          password: values.password,
-        }),
+        body: JSON.stringify({ login_id: loginId, password }),
       })
 
-      if (!response.ok) {
-        let serverMessage = '로그인에 실패했습니다.'
-        try {
-          const errorData = await response.json()
-          if (errorData?.detail) {
-            serverMessage = errorData.detail
-          }
-        } catch {
-          // ignore JSON parse error
-        }
-        throw new Error(serverMessage)
+      if (!res.ok) {
+        window.alert('로그인에 실패했습니다.')
+        return
       }
 
-      const data = await response.json()
+      const data = await res.json()
 
+      // 토큰 / 로그인 상태 저장 (필요 시 필드명 조정)
       if (data?.access_token) {
         localStorage.setItem('auth_token', data.access_token)
       }
-
       localStorage.setItem('isLoggedIn', 'true')
 
-      // 간단한 알림 후 이전 페이지로 이동
-      window.alert('로그인 성공')
-      navigate(from, { replace: true })
-    } catch (error: any) {
-      window.alert(error?.message || '로그인 중 오류가 발생했습니다.')
+      navigate('/', { replace: true })
+    } catch (error) {
+      console.error('로그인 오류:', error)
+      window.alert('로그인 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
@@ -74,72 +57,53 @@ export default function LoginPage() {
   return (
     <Box
       sx={{
-        flexGrow: 1,
-        overflow: 'auto',
-        p: 3,
+        minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        bgcolor: 'background.default',
+        p: 2,
       }}
     >
       <Paper
         elevation={3}
         sx={{
-          width: '100%',
-          maxWidth: 420,
+          width: 360,
           p: 4,
           borderRadius: 3,
-          backgroundColor: 'background.paper',
         }}
       >
-        <Typography variant="h5" sx={{ mb: 1.5, fontWeight: 600, textAlign: 'center' }}>
+        <Typography variant="h5" sx={{ mb: 3, fontWeight: 600, textAlign: 'center' }}>
           로그인
         </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mb: 3, textAlign: 'center' }}
-        >
-          계정으로 로그인하여 서비스를 이용하세요.
-        </Typography>
-
-        <Box
-          component="form"
-          onSubmit={(e) => {
-            e.preventDefault()
-            handleFinish({ username: loginId, password })
-          }}
-        >
-          <Stack spacing={2.5}>
-            <TextField
-              label="아이디"
-              fullWidth
-              size="small"
-              value={loginId}
-              onChange={(e) => setLoginId(e.target.value)}
-            />
-            <TextField
-              label="비밀번호"
-              type="password"
-              fullWidth
-              size="small"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              fullWidth
-              disabled={!loginId || !password || loading}
-              sx={{ mt: 1 }}
-            >
-              {loading ? '로그인 중...' : '로그인'}
-            </Button>
-          </Stack>
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            label="아이디"
+            size="small"
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
+            fullWidth
+          />
+          <TextField
+            label="비밀번호"
+            type="password"
+            size="small"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            fullWidth
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            disabled={loading}
+            sx={{ mt: 1.5 }}
+          >
+            {loading ? <CircularProgress size={20} color="inherit" /> : '로그인'}
+          </Button>
         </Box>
       </Paper>
     </Box>
   )
 }
-

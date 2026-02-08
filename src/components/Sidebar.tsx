@@ -35,7 +35,19 @@ interface SidebarProps {
   onMobileClose?: () => void
 }
 
-const menuItems = [
+type SidebarChildItem = {
+  id: string
+  label: string
+}
+
+type SidebarMenuItem = {
+  id: string
+  label: string
+  icon: JSX.Element
+  children?: SidebarChildItem[]
+}
+
+const menuItems: SidebarMenuItem[] = [
   { id: 'home', label: '홈', icon: <HomeIcon /> },
   { id: 'search', label: '검색', icon: <SearchIcon /> },
   { id: 'chat', label: '채팅', icon: <ChatIcon /> },
@@ -43,16 +55,17 @@ const menuItems = [
   { id: 'gallery', label: '겔러리', icon: <GalleryIcon /> },
   { id: 'profile', label: '프로필', icon: <PersonIcon /> },
   { id: 'my-finance', label: '마이금융', icon: <AttachMoneyIcon /> },
-  { id: 'info-manage', label: '정보관리', icon: <InfoIcon /> },
+  { id: 'apps-info', label: '정보관리', icon: <InfoIcon /> },
   {
     id: 'apps',
-    label: 'Apps',
+    label: '앱',
     icon: <AppsIcon />,
     children: [
-      { id: 'apps-calendar', label: '켈린더' },
-      { id: 'apps-accounts', label: '계정관리' },
-      { id: 'apps-favorites', label: '즐겨찾기' },
-      { id: 'apps-memo', label: '메모장' },
+      { id: 'memo', label: '메모장' },
+      { id: 'calendar', label: '캘린더' },
+      { id: 'apps-accounts', label: '계정' },
+      { id: 'webapps', label: '웹앱' },
+      { id: 'app-configs', label: '앱설정' },
     ],
   },
   { id: 'settings', label: '설정', icon: <SettingsIcon /> },
@@ -127,13 +140,14 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
       {/* Menu Items */}
       <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
         <List sx={{ py: 1 }}>
-          {menuItems.map((item) => (
+          {menuItems.map((item: SidebarMenuItem) => (
             <Box key={item.id}>
               <ListItem disablePadding>
                 <ListItemButton
                   selected={
                     selectedMenu === item.id ||
-                    (item.children?.some((child) => child.id === selectedMenu) ?? false)
+                    (item.children?.some((child: SidebarChildItem) => child.id === selectedMenu) ??
+                      false)
                   }
                   onClick={() => {
                     if (item.children && item.children.length > 0) {
@@ -170,7 +184,8 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
                     sx={{
                       color:
                         selectedMenu === item.id ||
-                        (item.children?.some((child) => child.id === selectedMenu) ?? false)
+                        (item.children?.some((child: SidebarChildItem) => child.id === selectedMenu) ??
+                          false)
                           ? 'white'
                           : 'text.secondary',
                       minWidth: (collapsed && !isMobile) ? 0 : 40,
@@ -187,7 +202,8 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
                           fontSize: 14,
                           fontWeight:
                             selectedMenu === item.id ||
-                            (item.children?.some((child) => child.id === selectedMenu) ?? false)
+                            (item.children?.some((child: SidebarChildItem) => child.id === selectedMenu) ??
+                              false)
                               ? 600
                               : 400,
                         }}
@@ -208,7 +224,7 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
               {item.children && (!collapsed || isMobile) && (
                 <Collapse in={openMenus[item.id]} timeout="auto" unmountOnExit>
                   <Box sx={{ pl: 4 }}>
-                    {item.children.map((child) => (
+                    {item.children.map((child: SidebarChildItem) => (
                       <ListItem key={child.id} disablePadding>
                         <ListItemButton
                           selected={selectedMenu === child.id}
@@ -218,9 +234,10 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
                             borderRadius: 2,
                             justifyContent: 'flex-start',
                             minHeight: 36,
+                            color: 'primary.main',
                             '&.Mui-selected': {
                               backgroundColor: '#B8D7FF',
-                              color: 'white',
+                              color: 'primary.main',
                               '&:hover': {
                                 backgroundColor: '#B8D7FF',
                               },
@@ -236,6 +253,7 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
                               fontSize: 13,
                               fontWeight: selectedMenu === child.id ? 600 : 400,
                             }}
+                            sx={{ color: 'inherit' }}
                           />
                         </ListItemButton>
                       </ListItem>

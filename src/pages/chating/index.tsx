@@ -252,19 +252,12 @@ export default function ChatPage() {
     <Box
       sx={{
         flexGrow: 1,
-        display: 'flex',
-        flexDirection: 'column',
+        overflow: 'hidden',
         p: 3,
       }}
     >
       <TopBar />
-      <Box
-        sx={{
-          flexGrow: 1,
-          overflow: 'auto',
-        }}
-      >
-        <Paper
+      <Paper
         elevation={0}
         sx={{
           p: 3,
@@ -399,7 +392,6 @@ export default function ChatPage() {
           </Box>
         </Paper>
       </Paper>
-      </Box>
     </Box>
   )
 }

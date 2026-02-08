@@ -230,8 +230,8 @@ export default function AccountsPage() {
                 <TableCell align="center" sx={{ fontWeight: 600, width: 60 }}>
                   NO
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 100 }}>계정명</TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 100 }}>아이디</TableCell>
+                <TableCell sx={{ fontWeight: 600,width: 100  }}>계정명</TableCell>
+                <TableCell sx={{ fontWeight: 600,width: 100  }}>아이디</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>
                   중요도
                 </TableCell>
