@@ -57,10 +57,16 @@ export type ApiAppPayload = Partial<ApiAppData>
 export async function fetchAppDataListApi(params?: {
   skip?: number
   limit?: number
+  app_id?: number
+  gr_num?: number
+  reply_cd_empty?: boolean
 }): Promise<ApiAppData[]> {
   const search = new URLSearchParams()
   if (params?.skip != null) search.set('skip', String(params.skip))
   if (params?.limit != null) search.set('limit', String(params.limit))
+  if (params?.app_id != null) search.set('app_id', String(params.app_id))
+  if (params?.gr_num != null) search.set('gr_num', String(params.gr_num))
+  if (params?.reply_cd_empty === true) search.set('reply_cd_empty', '1')
   const url = search.toString() ? `${BASE}/app_data?${search}` : `${BASE}/app_data`
   const response = await fetch(url)
   if (!response.ok) throw new Error('Failed to fetch app data list')
@@ -93,8 +99,15 @@ async function checkOk(response: Response, fallbackMessage: string): Promise<voi
   throw new Error(message)
 }
 
-export async function createAppDataApi(payload: ApiAppPayload): Promise<ApiAppData> {
-  const response = await fetch(`${BASE}/app_data`, {
+// 등록
+export async function createAppDataApi(
+  payload: ApiAppPayload,
+  params?: { reply?: number }
+): Promise<ApiAppData> {
+  const search = new URLSearchParams()
+  if (params?.reply != null) search.set('reply', String(params.reply))
+  const url = search.toString() ? `${BASE}/app_data?${search}` : `${BASE}/app_data`
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -103,11 +116,16 @@ export async function createAppDataApi(payload: ApiAppPayload): Promise<ApiAppDa
   return (await response.json()) as ApiAppData
 }
 
+// 수정처리
 export async function updateAppDataApi(
   dataId: number,
-  payload: ApiAppPayload
+  payload: ApiAppPayload,
+  params?: { reply?: number }
 ): Promise<ApiAppData> {
-  const response = await fetch(`${BASE}/app_data/${dataId}`, {
+  const search = new URLSearchParams()
+  if (params?.reply != null) search.set('reply', String(params.reply))
+  const url = search.toString() ? `${BASE}/app_data/${dataId}?${search}` : `${BASE}/app_data/${dataId}`
+  const response = await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -116,8 +134,20 @@ export async function updateAppDataApi(
   return (await response.json()) as ApiAppData
 }
 
+// 삭제
 export async function deleteAppDataApi(dataId: number): Promise<{ message: string }> {
   const response = await fetch(`${BASE}/app_data/${dataId}`, { method: 'DELETE' })
   if (!response.ok) throw new Error('Failed to delete app data')
   return (await response.json()) as { message: string }
+}
+
+// 선택 삭제 (배치)
+export async function deleteAppDataBatchApi(dataIds: number[]): Promise<{ deleted: number; errors: string[] }> {
+  const response = await fetch(`${BASE}/app_data/batch_delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data_ids: dataIds }),
+  })
+  if (!response.ok) throw new Error('Failed to delete app data')
+  return (await response.json()) as { deleted: number; errors: string[] }
 }

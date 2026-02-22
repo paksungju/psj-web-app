@@ -18,12 +18,15 @@ import HomeIcon from '@mui/icons-material/Home'
 import AppsIcon from '@mui/icons-material/Apps'
 import ChatIcon from '@mui/icons-material/Chat'
 import HistoryIcon from '@mui/icons-material/History'
+import StarIcon from '@mui/icons-material/Star'
 import GalleryIcon from '@mui/icons-material/Collections'
+import FolderIcon from '@mui/icons-material/Folder'
 import SettingsIcon from '@mui/icons-material/Settings'
 import PersonIcon from '@mui/icons-material/Person'
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
 import InfoIcon from '@mui/icons-material/Info'
 import SearchIcon from '@mui/icons-material/Search'
+import AssignmentIcon from '@mui/icons-material/Assignment'
 import MenuIcon from '@mui/icons-material/Menu'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
@@ -52,10 +55,13 @@ const menuItems: SidebarMenuItem[] = [
   { id: 'search', label: '검색', icon: <SearchIcon /> },
   { id: 'chat', label: '채팅', icon: <ChatIcon /> },
   { id: 'history', label: '히스토리', icon: <HistoryIcon /> },
+  { id: 'favorite', label: '즐겨찾기', icon: <StarIcon /> },
   { id: 'gallery', label: '겔러리', icon: <GalleryIcon /> },
+  { id: 'files', label: '파일관리', icon: <FolderIcon /> },
   { id: 'profile', label: '프로필', icon: <PersonIcon /> },
+  { id: 'makerplan', label: '메이커플랜', icon: <AssignmentIcon /> },
   { id: 'my-finance', label: '마이금융', icon: <AttachMoneyIcon /> },
-  { id: 'apps-info', label: '정보관리', icon: <InfoIcon /> },
+  { id: 'apps/info', label: '정보관리', icon: <InfoIcon /> },
   {
     id: 'apps',
     label: '앱',
@@ -65,7 +71,7 @@ const menuItems: SidebarMenuItem[] = [
       { id: 'calendar', label: '캘린더' },
       { id: 'apps-accounts', label: '계정' },
       { id: 'webapps', label: '웹앱' },
-      { id: 'app-configs', label: '앱설정' },
+      { id: 'app/configs', label: '앱설정' },
     ],
   },
   { id: 'settings', label: '설정', icon: <SettingsIcon /> },

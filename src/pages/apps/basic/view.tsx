@@ -11,6 +11,19 @@ import {
 import TopBar from '../../../components/TopBar'
 import { fetchAppDataByIdApi, type ApiAppData } from '../../../apis/appApi'
 
+/** ap_content HTML 내 이미지 src에 도메인 추가 */
+function processContentHtml(html: string): string {
+  if (!html) return ''
+  return html.replace(
+    /<img([^>]*)\ssrc=["']([^"']+)["']/gi,
+    (match, attrs: string, src: string) => {
+      if (src.startsWith('http')) return match
+      const path = src.startsWith('/') ? src : `/${src}`
+      return `<img${attrs} src="http://impsj.net${path}"`
+    },
+  )
+}
+
 function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <Box sx={{ mb: 2 }}>
@@ -100,7 +113,41 @@ export default function AppDataViewPage() {
 
         <Divider sx={{ my: 2 }} />
 
-        <FieldRow label="내용" value={data.ap_content} />
+        <Box sx={{ minHeight: 300 }}>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
+              내용
+            </Typography>
+            <Box
+              className="content-html"
+              component="div"
+              dangerouslySetInnerHTML={{ __html: processContentHtml(data.ap_content ?? '') }}
+              sx={{
+                overflow: 'hidden',
+                wordBreak: 'break-word',
+                '& img': {
+                  maxWidth: '100%',
+                  height: 'auto',
+                  objectFit: 'contain',
+                },
+                '& figure': {
+                  margin: '0.5em 0',
+                  maxWidth: '100%',
+                },
+                '& figure img': {
+                  maxWidth: '100%',
+                },
+                '& p': { margin: '0 0 0.75em' },
+                '& .image-style-align-left': { float: 'left', marginRight: 2, marginBottom: 1, maxWidth: '100%' },
+                '& .image-style-align-right': { float: 'right', marginLeft: 2, marginBottom: 1, maxWidth: '100%' },
+                '& .image-style-align-center': { display: 'block', marginLeft: 'auto', marginRight: 'auto', textAlign: 'center', maxWidth: '100%' },
+                '& .image-style-align-block-left': { display: 'block', marginRight: 'auto', marginLeft: 0, maxWidth: '100%' },
+                '& .image-style-align-block-right': { display: 'block', marginLeft: 'auto', marginRight: 0, maxWidth: '100%' },
+                '& figure::after': { content: '""', display: 'table', clear: 'both' },
+              }}
+            />
+          </Box>
+        </Box>
 
         <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', gap: 1 }}>
           <FieldRow label="그룹 번호" value={data.gr_num} />
@@ -108,11 +155,6 @@ export default function AppDataViewPage() {
           <FieldRow label="작성자" value={data.user_nm} />
           <FieldRow label="이메일" value={data.user_email} />
         </Stack>
-
-        <FieldRow label="시작일" value={data.start_date} />
-        <FieldRow label="종료일" value={data.end_date} />
-        <FieldRow label="등록일" value={data.regist_dt} />
-        <FieldRow label="수정일" value={data.update_dt} />
 
         {[data.cate1, data.cate2].some(Boolean) && (
           <FieldRow
@@ -124,16 +166,32 @@ export default function AppDataViewPage() {
         <Divider sx={{ my: 2 }} />
 
         <Stack direction="row" spacing={1.5} sx={{ mt: 3, justifyContent: 'flex-end' }}>
-          <Button variant="outlined" color="inherit" onClick={() => navigate('/app-info')}>
-            목록
+          <Button variant="outlined" color="inherit" onClick={() => navigate('/apps/info')}>
+            목 록
           </Button>
           <Button
-            variant="contained"
-            color="primary"
-            onClick={() => navigate(`/apps/basic/form/${data.data_id}`)}
+            variant="outlined"
+            color="inherit"
+            onClick={() => navigate(`/apps/info/${data.data_id}/form`)}
           >
-            수정
+            삭 제
           </Button>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={() => navigate(`/apps/info/${data.data_id}/form?reply=1`)}
+          >
+            답변
+          </Button>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={() => navigate(`/apps/info/${data.data_id}/form`)}
+          >
+            수 정
+          </Button>
+
+          
         </Stack>
       </Paper>
     </Box>

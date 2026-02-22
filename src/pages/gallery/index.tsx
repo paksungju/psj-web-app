@@ -6,8 +6,6 @@ import {
   Grid,
   Card,
   CardActionArea,
-  CardMedia,
-  CardContent,
   Button,
   IconButton,
   Menu,
@@ -317,6 +315,18 @@ export default function GalleryPage() {
           </Button>
           <Button
             variant="outlined"
+            color="primary"
+            onClick={() => {
+              if (!selectMode) setSelectMode(true)
+              const allIndexes = files.map((_, i) => i)
+              setSelectedIndexes(selectedIndexes.length === files.length ? [] : allIndexes)
+            }}
+            disabled={!files.length}
+          >
+            {selectMode && selectedIndexes.length === files.length ? '전체해제' : '전체선택'}
+          </Button>
+          <Button
+            variant="outlined"
             color="error"
             disabled={!selectedIndexes.length}
             onClick={handleDeleteSelected}
@@ -465,7 +475,11 @@ export default function GalleryPage() {
           </>
         )}
 
-        {viewMode === 'grid' ? (
+        {files.length === 0 ? (
+          <Box sx={{ py: 6, textAlign: 'center' }}>
+            <Typography color="text.secondary">데이터 없음</Typography>
+          </Box>
+        ) : viewMode === 'grid' ? (
           <Grid container spacing={2.5}>
             {files.map((item, index) => (
               <Grid

@@ -1,49 +1,9 @@
 import { useEffect, useState } from 'react'
-import {
-  Box,
-  Paper,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  Stack,
-  Select,
-  MenuItem,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-} from '@mui/material'
+import { Box, Paper, Typography, Button, TextField, InputAdornment, CircularProgress } from '@mui/material'
+import SearchIcon from '@mui/icons-material/Search'
 import TopBar from '../../components/TopBar'
-import { useLocation } from 'react-router-dom'
-import {
-  createAccountApi,
-  fetchAccountsApi,
-  fetchAccountDetailApi,
-  updateAccountApi,
-} from '../../apis/accountApi'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ApiSearch, fetchSearchApi } from '../../apis/searchApi'
-
-interface AccountRow {
-  acId: number
-  acSubject: string
-  acLoginId?: string
-  acLoginPw?: string | null
-  acMemo?: string | null
-  sortNo: number
-  acLevel: number
-  useFlag: number
-  delFlag: number
-  createdAt: string
-  updatedAt: string
-}
 
 interface SearchRow {
   sid: number
@@ -56,44 +16,54 @@ interface SearchRow {
   updatedAt: string
 }
 
-
 export default function SearchPage() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const params = new URLSearchParams(location.search)
+  const initialKeyword = params.get('keyword') ?? ''
 
-  const [searches, setSearches] = useState<ApiSearch[]>([])
+  const [searches, setSearches] = useState<SearchRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [keyword, setKeyword] = useState(initialKeyword)
+
+  useEffect(() => {
+    setKeyword(initialKeyword)
+  }, [initialKeyword])
 
   useEffect(() => {
     const fetchSearch = async () => {
+      setLoading(true)
+      setError(null)
       try {
-        const params = new URLSearchParams(location.search)
-        const kw = params.get('keyword') ?? ''
+        const data = await fetchSearchApi(initialKeyword)
+        const rows = Array.isArray(data) ? data : []
 
-        const data = await fetchSearchApi(kw)
-
-        const mapped: SearchRow[] = data.map((item) => {
+        const mapped: SearchRow[] = rows.map((item: ApiSearch) => {
           const dateOnly = item.regist_dt?.slice(0, 10) ?? ''
-
           return {
             sid: item.sid,
-            tb_name: item.tb_name,
+            tb_name: item.tb_name ?? '',
             tb_id: item.tb_id,
-            subject: item.subject,
-            url: item.url,
-            regist_dt: item.regist_dt,
+            subject: item.subject ?? '',
+            url: item.url ?? '',
+            regist_dt: item.regist_dt ?? '',
             createdAt: dateOnly,
-            // 수정일 필드가 없으므로 일단 등록일과 동일하게 표시
             updatedAt: dateOnly,
           }
         })
-
         setSearches(mapped)
-      } catch (error) {
-        console.error('검색 데이터를 불러오는 중 오류가 발생했습니다:', error)
+      } catch (err) {
+        console.error('검색 데이터를 불러오는 중 오류가 발생했습니다:', err)
+        setError(err instanceof Error ? err.message : '검색 중 오류가 발생했습니다.')
+        setSearches([])
+      } finally {
+        setLoading(false)
       }
     }
 
     fetchSearch()
-  }, [location.search])
+  }, [initialKeyword])
 
 
 
@@ -122,15 +92,55 @@ export default function SearchPage() {
           시스템내의 전체 데이터 목록입니다.
         </Typography>
 
-        <Button
-          variant="contained"
-          color="primary"
-          sx={{ mb: 2 }}
-          onClick={() => window.location.reload()}
-        >
-          새로고침
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
+          <TextField
+            size="small"
+            placeholder="키워드 검색"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                navigate(`/search?keyword=${encodeURIComponent(keyword.trim())}`)
+              }
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+                </InputAdornment>
+              ),
+              sx: { backgroundColor: 'grey.50', borderRadius: 1 },
+            }}
+            sx={{ minWidth: 280 }}
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => navigate(`/search?keyword=${encodeURIComponent(keyword.trim())}`)}
+            disabled={loading}
+          >
+            검색
+          </Button>
+          <Button variant="outlined" color="inherit" onClick={() => window.location.reload()} disabled={loading}>
+            새로고침
+          </Button>
+        </Box>
 
+        {error && (
+          <Typography color="error" sx={{ mb: 2 }}>
+            {error}
+          </Typography>
+        )}
+
+        {loading ? (
+          <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
+            <CircularProgress />
+          </Box>
+        ) : searches.length === 0 ? (
+          <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Typography color="text.secondary">검색 결과가 없습니다.</Typography>
+          </Paper>
+        ) : (
         <Paper
           variant="outlined"
           sx={{
@@ -188,8 +198,7 @@ export default function SearchPage() {
             ))}
           </Box>
         </Paper>
-
-       
+        )}
       </Paper>
     </Box>
   )

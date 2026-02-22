@@ -17,15 +17,18 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  Collapse,
 } from '@mui/material'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import CloseIcon from '@mui/icons-material/Close'
 import CheckIcon from '@mui/icons-material/Check'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import TopBar from '../../../components/TopBar'
 import SendIcon from '@mui/icons-material/Send'
 import {
   fetchAppDataListApi,
   createAppDataApi,
+  updateAppDataApi,
   type ApiAppData,
   type ApiAppPayload,
 } from '../../../apis/appApi'
@@ -53,10 +56,33 @@ interface OgPreviewData {
   error?: string
 }
 
-/** Microlink API로 OG 메타 가져오기 (카드 미리보기용) */
+/** YouTube URL에서 비디오 ID 추출 */
+function getYoutubeVideoId(url: string): string | null {
+  try {
+    const u = new URL(url.trim())
+    if (/youtube\.com|youtu\.be/i.test(u.hostname)) {
+      if (u.hostname === 'youtu.be') return u.pathname.slice(1).split('?')[0] || null
+      return u.searchParams.get('v') || null
+    }
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+/** OG 메타 가져오기. YouTube는 직접 썸네일, 그 외 Microlink(프록시) */
 async function fetchOgPreview(url: string): Promise<Pick<OgPreviewData, 'title' | 'description' | 'image'>> {
+  const ytId = getYoutubeVideoId(url)
+  if (ytId) {
+    return {
+      title: 'YouTube',
+      description: undefined,
+      image: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
+    }
+  }
   const apiUrl = `https://api.microlink.io?url=${encodeURIComponent(url)}`
-  const res = await fetch(apiUrl)
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`
+  const res = await fetch(proxyUrl)
   if (!res.ok) throw new Error('미리보기를 불러올 수 없습니다.')
   const json = await res.json()
   if (json.status !== 'success' || !json.data) throw new Error('미리보기를 불러올 수 없습니다.')
@@ -145,6 +171,8 @@ export default function ChatPage() {
   /** 메시지 인라인 수정 */
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null)
   const [editingDraft, setEditingDraft] = useState('')
+  /** 링크 iframe 미리보기 열린 URL */
+  const [previewLinkUrl, setPreviewLinkUrl] = useState<string | null>(null)
 
   useEffect(() => {
     const urls = new Set<string>()
@@ -204,34 +232,29 @@ export default function ChatPage() {
     const trimmed = input.trim()
     if (!trimmed) return
 
-    // 사용자 메시지를 채팅 목록에 추가
     const now = new Date()
     const time = `${now.getHours().toString().padStart(2, '0')}:${now
       .getMinutes()
       .toString()
       .padStart(2, '0')}`
 
-    setMessages((prev) => {
-      const nextId = prev.length > 0 ? Math.max(...prev.map((m) => m.id)) + 1 : 1
-      return [
+    setInput('')
+    setLoading(true)
+    try {
+      const created = await saveMessageAsAppData(trimmed)
+      const dataId = created?.data_id
+      setMessages((prev) => [
         ...prev,
         {
-          id: nextId,
+          id: dataId ?? (prev.length > 0 ? Math.max(...prev.map((m) => m.id)) + 1 : 1),
           author: 'me',
           text: trimmed,
           time,
         },
-      ]
-    })
-
-    setInput('')
-    setLoading(true)
-    try {
-      await saveMessageAsAppData(trimmed)
+      ])
     } catch (e) {
       console.error('메시지 저장 오류:', e)
-      const msg = e instanceof Error ? e.message : '저장에 실패했습니다.'
-      alert(msg)
+      alert(e instanceof Error ? e.message : '저장에 실패했습니다.')
     } finally {
       setLoading(false)
     }
@@ -245,8 +268,8 @@ export default function ChatPage() {
   }
 
   /** 메시지 텍스트를 앱 데이터로 저장 (form handleSubmit과 동일한 payload 구성) */
-  const saveMessageAsAppData = async (text: string): Promise<void> => {
-    if (!text.trim()) return
+  const saveMessageAsAppData = async (text: string): Promise<ApiAppData> => {
+    if (!text.trim()) throw new Error('메시지가 비어 있습니다.')
     // form과 동일: ap_subject/ap_content에 메시지, 나머지는 ''/0
     const form = {
       ap_subject: text.trim(),
@@ -278,7 +301,43 @@ export default function ChatPage() {
         ;(payload as Record<string, unknown>)[k] = 0
       }
     }
-    await createAppDataApi(payload)
+    return await createAppDataApi(payload)
+  }
+
+  /** 메시지 수정 시 앱 데이터 업데이트 */
+  const updateMessageAsAppData = async (dataId: number, text: string): Promise<void> => {
+    if (!text.trim()) return
+    const form = {
+      ap_subject: text.trim(),
+      ap_content: text.trim(),
+      app_id: 2,
+    } as ApiAppPayload
+    const strKeys: (keyof ApiAppPayload)[] = [
+      'cate1', 'cate2', 'ap_subject', 'ap_content', 'recv_mail', 'link1', 'link2',
+      'user_passwd', 'user_nm', 'user_email', 'user_home', 'last_login', 'ip',
+      'facebook_user', 'twitter_user', 'start_date', 'start_time', 'end_date', 'end_time',
+      'regist_dt', 'update_dt', 'extra_1', 'extra_2', 'extra_3', 'extra_4', 'extra_5',
+      'extra_6', 'extra_7', 'extra_8', 'extra_9', 'extra_10',
+    ]
+    const intKeys: (keyof ApiAppPayload)[] = [
+      'data_id', 'app_id', 'gr_num', 'reply_cd', 'parent_id', 'is_commt', 'co_num', 'co_reply',
+      'wr_type', 'is_secret', 'link1_hit', 'link2_hit', 'hit', 'good', 'nogood', 'user_no', 'file_cnt',
+    ]
+    const payload = {} as ApiAppPayload
+    for (const k of strKeys) {
+      const v = form[k]
+      ;(payload as Record<string, unknown>)[k] = v != null && v !== '' ? String(v) : ''
+    }
+    for (const k of intKeys) {
+      const v = form[k]
+      if (v != null && v !== '') {
+        const n = Number(v)
+        ;(payload as Record<string, unknown>)[k] = Number.isNaN(n) ? 0 : n
+      } else {
+        ;(payload as Record<string, unknown>)[k] = 0
+      }
+    }
+    await updateAppDataApi(dataId, payload)
   }
 
   return (
@@ -398,10 +457,17 @@ export default function ChatPage() {
                             </IconButton>
                             <IconButton
                               size="small"
-                              onClick={() => {
-                                setMessages((prev) =>
-                                  prev.map((m) => (m.id === msg.id ? { ...m, text: editingDraft } : m))
-                                )
+                              onClick={async () => {
+                                try {
+                                  await updateMessageAsAppData(msg.id, editingDraft)
+                                  setMessages((prev) =>
+                                    prev.map((m) => (m.id === msg.id ? { ...m, text: editingDraft } : m))
+                                  )
+                                } catch (e) {
+                                  console.error('메시지 수정 오류:', e)
+                                  alert(e instanceof Error ? e.message : '수정에 실패했습니다.')
+                                  return
+                                }
                                 setEditingMessageId(null)
                                 setEditingDraft('')
                               }}
@@ -548,6 +614,38 @@ export default function ChatPage() {
                                   try { return new URL(url).hostname } catch { return url }
                                 })()}
                               </Typography>
+                              <Button
+                                size="small"
+                                startIcon={<VisibilityIcon fontSize="small" />}
+                                onClick={() => setPreviewLinkUrl(previewLinkUrl === url ? null : url)}
+                                sx={{ mt: 1, minWidth: 'auto', px: 1 }}
+                              >
+                                미리 보기
+                              </Button>
+                              <Collapse in={previewLinkUrl === url}>
+                                <Box
+                                  sx={{
+                                    mt: 1,
+                                    borderRadius: 1,
+                                    overflow: 'hidden',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    height: 280,
+                                  }}
+                                >
+                                  <Box
+                                    component="iframe"
+                                    src={url}
+                                    title="링크 미리보기"
+                                    sx={{
+                                      width: '100%',
+                                      height: '100%',
+                                      border: 'none',
+                                      display: 'block',
+                                    }}
+                                  />
+                                </Box>
+                              </Collapse>
                             </Box>
                           </Paper>
                         )

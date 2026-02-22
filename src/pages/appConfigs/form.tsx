@@ -68,7 +68,7 @@ export default function WebappFormPage() {
         })
       } catch (e) {
         console.error(e)
-        if (!cancelled) navigate('/webapps')
+        if (!cancelled) navigate('/app/configs')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -119,7 +119,7 @@ export default function WebappFormPage() {
       } else {
         await createAppConfigApi(payload)
       }
-      navigate('/webapps')
+      navigate('/app/configs')
     } catch (e) {
       console.error(e)
       alert('저장에 실패했습니다.')
@@ -332,7 +332,7 @@ export default function WebappFormPage() {
           <Button
             variant="outlined"
             color="inherit"
-            onClick={() => navigate('/webapps')}
+            onClick={() => navigate('/app/configs')}
             disabled={saving}
           >
             취소

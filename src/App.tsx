@@ -7,14 +7,21 @@ import Sidebar from './components/Sidebar'
 import HomeScreen from './components/HomeScreen'
 import ChatPage from './pages/chating/index'
 import MemoPage from './pages/apps/memo'
+import FavoritePage from './pages/apps/favorite'
+import CalendarPage from './pages/calendar'
 import GalleryPage from './pages/gallery'
+import FilesPage from './pages/files'
+import MakerPlanPage from './pages/makerplan'
+import MakerPlanFormPage from './pages/makerplan/form'
+import MakerPlanViewPage from './pages/makerplan/view'
 import AccountsPage from './pages/accounts'
 import AppsInfoPage from './pages/apps/basic'
 import AppInfoFormPage from './pages/apps/basic/form'
 import AppInfoViewPage from './pages/apps/basic/view'
-import AppConfigPage from './pages/appConfigs'
-import AppConfigFormPage from './pages/appConfigs/form'
+import AppConfigPage from './pages/appconfigs'
+import AppConfigFormPage from './pages/appconfigs/form'
 import LoginPage from './pages/login'
+import SearchPage from './pages/search'
 
 const theme = createTheme({
   palette: {
@@ -41,22 +48,33 @@ function AppContent() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (location.pathname === '/chat') {
+    if (location.pathname === '/search') {
+      setSelectedMenu('search')
+    } else if (location.pathname === '/chat') {
       setSelectedMenu('chat')
     } else if (location.pathname === '/gallery') {
       setSelectedMenu('gallery')
     } else if (location.pathname === '/apps-accounts') {
       setSelectedMenu('apps-accounts')
-    } else if (location.pathname === '/app-configs' || location.pathname.startsWith('/app-configs/')) {
-      setSelectedMenu('app-configs')
+    } else if (location.pathname === '/app/configs' || location.pathname.startsWith('/app/configs/')) {
+      setSelectedMenu('app/configs')
     } else if (location.pathname === '/app-info' || location.pathname.startsWith('/app-info/')) {
       setSelectedMenu('apps-info')
-    } else if (location.pathname === '/apps/basic/form' || location.pathname.startsWith('/apps/basic/form/')) {
+    } else if (location.pathname === '/apps/info/create' || location.pathname.startsWith('/apps/info/create') ||
+               /^\/apps\/info\/\d+\/form/.test(location.pathname)) {
       setSelectedMenu('apps-info/form')
-    } else if (location.pathname === '/apps/info/create' || location.pathname.startsWith('/apps/info/create/')) {
-      setSelectedMenu('apps-info/form')
+    } else if (location.pathname === '/apps/info' || location.pathname.match(/^\/apps\/info\/\d+$/)) {
+      setSelectedMenu('apps/info')
     } else if (location.pathname === '/apps/memo' || location.pathname.startsWith('/apps/memo/')) {
       setSelectedMenu('memo')
+    } else if (location.pathname === '/apps/calendar' || location.pathname.startsWith('/apps/calendar/')) {
+      setSelectedMenu('calendar')
+    } else if (location.pathname === '/apps/favorite' || location.pathname.startsWith('/apps/favorite/')) {
+      setSelectedMenu('favorite')
+    } else if (location.pathname === '/files' || location.pathname.startsWith('/files/') || location.pathname === '/apps/files' || location.pathname.startsWith('/apps/files/')) {
+      setSelectedMenu('files')
+    } else if (location.pathname === '/makerplan' || location.pathname.startsWith('/makerplan/')) {
+      setSelectedMenu('makerplan')
     }
     // 그 외 경로('/') 등에서는 현재 선택된 메뉴를 유지
   }, [location.pathname])
@@ -64,7 +82,9 @@ function AppContent() {
   const handleMenuSelect = (menuId: string) => {
     setSelectedMenu(menuId)
 
-    if (menuId === 'chat') {
+    if (menuId === 'search') {
+      navigate('/search')
+    } else if (menuId === 'chat') {
       navigate('/chat')
     } else if (menuId === 'gallery') {
       navigate('/gallery')
@@ -72,18 +92,26 @@ function AppContent() {
       navigate('/apps-accounts')
     } else if (menuId === 'app-settings') {
       navigate('/webapps')
-    } else if (menuId === 'app-configs') {
-      navigate('/app-configs')
-      } else if (menuId === 'apps-info') {
-        navigate('/app-info')
+    } else if (menuId === 'app/configs') {
+      navigate('/app/configs')
+      } else if (menuId === 'apps/info') {
+        navigate('/apps/info')
       } else if (menuId === 'apps-info/form') {
-        navigate('/apps/basic/form')
+        navigate('/apps/info/create')
       } else if (menuId === 'apps-info/view') {
-        navigate('/apps/basic/view')
+        navigate('/apps/info')
       } else if (menuId === 'apps/info/create') {
         navigate('/apps/info/create')
       } else if (menuId === 'memo') {
         navigate('/apps/memo')
+      } else if (menuId === 'calendar') {
+        navigate('/apps/calendar')
+      } else if (menuId === 'favorite') {
+        navigate('/apps/favorite')
+      } else if (menuId === 'files') {
+        navigate('/files')
+      } else if (menuId === 'makerplan') {
+        navigate('/makerplan')
       } else {
       navigate('/')
     }
@@ -145,19 +173,27 @@ function AppContent() {
           >
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/gallery" element={<GalleryPage />} />
               <Route path="/apps-accounts" element={<AccountsPage />} />
-              <Route path="/app-configs" element={<AppConfigPage />} />
-              <Route path="/app-configs/:app_id/form" element={<AppConfigFormPage />} />
-              <Route path="/app-info" element={<AppsInfoPage />} />
-              <Route path="/app-info/:app_id/form" element={<AppInfoFormPage />} />
-              <Route path="/apps/basic/form" element={<AppInfoFormPage />} />
-              <Route path="/apps/basic/form/:id" element={<AppInfoFormPage />} />
-              <Route path="/apps/basic/view/:id" element={<AppInfoViewPage />} />
+              <Route path="/app/configs" element={<AppConfigPage />} />
+              <Route path="/app/configs/form" element={<AppConfigFormPage />} />
+              <Route path="/app/configs/:id/form" element={<AppConfigFormPage />} />
+              <Route path="/apps/info" element={<AppsInfoPage />} />
               <Route path="/apps/info/create" element={<AppInfoFormPage />} />
               <Route path="/apps/info/create/:id" element={<AppInfoFormPage />} />
+              <Route path="/apps/info/:id/form" element={<AppInfoFormPage />} />
+              <Route path="/apps/info/:id" element={<AppInfoViewPage />} />
+              <Route path="/app-info/:app_id/form" element={<AppInfoFormPage />} />
               <Route path="/apps/memo" element={<MemoPage />} />
+              <Route path="/apps/calendar" element={<CalendarPage />} />
+              <Route path="/apps/favorite" element={<FavoritePage />} />
+              <Route path="/files" element={<FilesPage />} />
+              <Route path="/makerplan" element={<MakerPlanPage />} />
+              <Route path="/makerplan/create" element={<MakerPlanFormPage />} />
+              <Route path="/makerplan/:id/form" element={<MakerPlanFormPage />} />
+              <Route path="/makerplan/:id" element={<MakerPlanViewPage />} />
 
               <Route path="*" element={<HomeScreen selectedMenu={selectedMenu} />} />
             </Routes>

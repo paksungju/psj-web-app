@@ -4,7 +4,7 @@ import ChatIcon from '@mui/icons-material/Chat'
 import HistoryIcon from '@mui/icons-material/History'
 import PersonIcon from '@mui/icons-material/Person'
 import SettingsIcon from '@mui/icons-material/Settings'
-import CalendarPage from '../pages/calendar/iindex'
+import CalendarPage from '../pages/calendar'
 import TopBar from './TopBar'
 
 interface HomeScreenProps {
@@ -40,7 +40,7 @@ const menuContent: Record<string, { title: string; icon: JSX.Element; descriptio
 }
 
 export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
-  if (selectedMenu === 'apps-calendar') {
+  if (selectedMenu === 'calendar') {
     return <CalendarPage />
   }
 

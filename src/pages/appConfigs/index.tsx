@@ -64,7 +64,7 @@ export default function WebappsPage() {
           variant="contained"
           color="primary"
           sx={{ mb: 2 }}
-          onClick={() => navigate('/webapps/form')}
+          onClick={() => navigate('/app/configs/form')}
         >
           웹앱 등록
         </Button>

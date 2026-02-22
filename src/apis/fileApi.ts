@@ -97,8 +97,9 @@ export async function deleteFilesApi(params: {
 }): Promise<void> {
   const { fileIds } = params
 
-  const response = await fetch(`http://impsj.net/api/v1/files/delete`, {
+  await fetch(`http://impsj.net/api/v1/files/delete`, {
     method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ fileIds }),
   })
 }
