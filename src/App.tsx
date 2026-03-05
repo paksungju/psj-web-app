@@ -22,6 +22,10 @@ import AppConfigPage from './pages/appconfigs'
 import AppConfigFormPage from './pages/appconfigs/form'
 import LoginPage from './pages/login'
 import SearchPage from './pages/search'
+import MailsPage from './pages/mails'
+import MailFormPage from './pages/mails/mailForm'
+import MailViewPage from './pages/mails/view'
+import ServerStatusPage from './pages/server'
 
 const theme = createTheme({
   palette: {
@@ -75,6 +79,10 @@ function AppContent() {
       setSelectedMenu('files')
     } else if (location.pathname === '/makerplan' || location.pathname.startsWith('/makerplan/')) {
       setSelectedMenu('makerplan')
+    } else if (location.pathname === '/mails' || location.pathname.startsWith('/mails/')) {
+      setSelectedMenu('mails')
+    } else if (location.pathname === '/server' || location.pathname.startsWith('/server/')) {
+      setSelectedMenu('server')
     }
     // 그 외 경로('/') 등에서는 현재 선택된 메뉴를 유지
   }, [location.pathname])
@@ -112,6 +120,10 @@ function AppContent() {
         navigate('/files')
       } else if (menuId === 'makerplan') {
         navigate('/makerplan')
+      } else if (menuId === 'mails') {
+        navigate('/mails')
+      } else if (menuId === 'server') {
+        navigate('/server')
       } else {
       navigate('/')
     }
@@ -194,6 +206,10 @@ function AppContent() {
               <Route path="/makerplan/create" element={<MakerPlanFormPage />} />
               <Route path="/makerplan/:id/form" element={<MakerPlanFormPage />} />
               <Route path="/makerplan/:id" element={<MakerPlanViewPage />} />
+              <Route path="/mails" element={<MailsPage />} />
+              <Route path="/mails/create" element={<MailFormPage />} />
+              <Route path="/mails/:dataId" element={<MailViewPage />} />
+              <Route path="/server" element={<ServerStatusPage />} />
 
               <Route path="*" element={<HomeScreen selectedMenu={selectedMenu} />} />
             </Routes>

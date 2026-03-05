@@ -25,7 +25,9 @@ import SettingsIcon from '@mui/icons-material/Settings'
 import PersonIcon from '@mui/icons-material/Person'
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney'
 import InfoIcon from '@mui/icons-material/Info'
+import MailIcon from '@mui/icons-material/Mail'
 import SearchIcon from '@mui/icons-material/Search'
+import StorageIcon from '@mui/icons-material/Storage'
 import AssignmentIcon from '@mui/icons-material/Assignment'
 import MenuIcon from '@mui/icons-material/Menu'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
@@ -62,6 +64,8 @@ const menuItems: SidebarMenuItem[] = [
   { id: 'makerplan', label: '메이커플랜', icon: <AssignmentIcon /> },
   { id: 'my-finance', label: '마이금융', icon: <AttachMoneyIcon /> },
   { id: 'apps/info', label: '정보관리', icon: <InfoIcon /> },
+  { id: 'mails', label: '메일', icon: <MailIcon /> },
+  { id: 'server', label: '서버상태', icon: <StorageIcon /> },
   {
     id: 'apps',
     label: '앱',

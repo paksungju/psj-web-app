@@ -201,7 +201,7 @@ export default function ChatPage() {
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const data = await fetchAppDataListApi({ skip: 0, limit: 100 })
+        const data = await fetchAppDataListApi({ skip: 0, limit: 100, app_id: 1 })
         const serverMessages: ChatMessage[] = (data ?? []).map((item: ApiAppData, idx: number) => {
           const created = item.regist_dt ?? item.update_dt ?? new Date().toISOString()
           const createdDate = new Date(created)
@@ -274,7 +274,7 @@ export default function ChatPage() {
     const form = {
       ap_subject: text.trim(),
       ap_content: text.trim(),
-      app_id: 2,
+      app_id: 1,
     } as ApiAppPayload
     const strKeys: (keyof ApiAppPayload)[] = [
       'cate1', 'cate2', 'ap_subject', 'ap_content', 'recv_mail', 'link1', 'link2',
@@ -310,7 +310,7 @@ export default function ChatPage() {
     const form = {
       ap_subject: text.trim(),
       ap_content: text.trim(),
-      app_id: 2,
+      app_id: 1,
     } as ApiAppPayload
     const strKeys: (keyof ApiAppPayload)[] = [
       'cate1', 'cate2', 'ap_subject', 'ap_content', 'recv_mail', 'link1', 'link2',
