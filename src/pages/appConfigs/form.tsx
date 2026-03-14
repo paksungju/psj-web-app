@@ -22,6 +22,7 @@ const emptyForm: ApiAppConfigPayload = {
   mobile_name: '',
   order_no: 0,
   page_rows: 10,
+  upload_count: 1,
   skin_nm: '',
   mobile_skin_nm: '',
   list_level: 0,
@@ -58,6 +59,7 @@ export default function WebappFormPage() {
           mobile_name: data.mobile_name ?? '',
           order_no: data.order_no ?? 0,
           page_rows: data.page_rows ?? 10,
+          upload_count: data.upload_count ?? 1,
           skin_nm: data.skin_nm ?? '',
           mobile_skin_nm: data.mobile_skin_nm ?? '',
           list_level: data.list_level ?? 0,
@@ -82,7 +84,7 @@ export default function WebappFormPage() {
   ) => {
     const raw = e.target.value
     const numFields: (keyof ApiAppConfigPayload)[] = [
-      'order_no', 'page_rows', 'list_level', 'read_level', 'write_level',
+      'order_no', 'page_rows', 'upload_count', 'list_level', 'read_level', 'write_level',
       'subject_len', 'mobile_subject_len',
     ]
     const value = numFields.includes(field) ? (raw === '' ? 0 : parseInt(raw, 10) || 0) : raw
@@ -106,6 +108,7 @@ export default function WebappFormPage() {
         mobile_name: form.mobile_name?.trim() || undefined,
         order_no: form.order_no ?? 0,
         page_rows: form.page_rows ?? 10,
+        upload_count: form.upload_count ?? 1,
         skin_nm: form.skin_nm?.trim() || undefined,
         mobile_skin_nm: form.mobile_skin_nm?.trim() || undefined,
         list_level: form.list_level ?? 0,
@@ -223,6 +226,19 @@ export default function WebappFormPage() {
                 type="number"
                 value={form.page_rows ?? 10}
                 onChange={handleChange('page_rows')}
+                InputProps={{ sx: { backgroundColor: 'grey.50' } }}
+              />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                첨부파일수
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                type="number"
+                value={form.upload_count}
+                onChange={handleChange('upload_count')}
                 InputProps={{ sx: { backgroundColor: 'grey.50' } }}
               />
             </Box>

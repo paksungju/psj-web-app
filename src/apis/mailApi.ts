@@ -52,6 +52,16 @@ export interface ImportMailsResponse {
   error?: string
 }
 
+export async function deleteMailsApi(params: { dataIds: number[] }): Promise<{ deleted: number; errors: string[] }> {
+  const response = await fetch(`${BASE}/mails/batch_delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data_ids: params.dataIds }),
+  })
+  if (!response.ok) throw new Error('Failed to delete mails')
+  return response.json()
+}
+
 export async function importMailsApi(): Promise<ImportMailsResponse> {
   const response = await fetch(`${BASE}/mails/import`, { method: 'POST' })
   if (!response.ok) throw new Error('Failed to import mails')

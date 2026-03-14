@@ -9,10 +9,23 @@ import {
   Divider,
   Dialog,
   IconButton,
+  Link,
 } from '@mui/material'
 import TopBar from '../../../components/TopBar'
-import { fetchAppDataByIdApi, type ApiAppData } from '../../../apis/appApi'
+import { fetchAppDataByIdApi, deleteAppDataApi, type ApiAppData } from '../../../apis/appApi'
+import { fetchFilesByDataApi, type ApiFile } from '../../../apis/fileApi'
 import CloseIcon from '@mui/icons-material/Close'
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}kb`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+function getDownloadUrl(fileId: number): string {
+  return `http://impsj.net/api/v1/files/${fileId}/download`
+}
 
 /** ap_content HTML 내 이미지 src에 도메인 추가 */
 function processContentHtml(html: string): string {
@@ -46,23 +59,36 @@ export default function AppDataViewPage() {
   const dataId = id ? parseInt(id, 10) : NaN
 
   const [data, setData] = useState<ApiAppData | null>(null)
+  const [files, setFiles] = useState<ApiFile[]>([])
   const [loading, setLoading] = useState(true)
   const [previewImage, setPreviewImage] = useState<{ src: string; alt?: string }>({ src: '' })
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (!id || isNaN(dataId)) {
       setData(null)
+      setFiles([])
       setLoading(false)
       return
     }
     let cancelled = false
     const load = async () => {
       try {
-        const res = await fetchAppDataByIdApi(dataId)
-        if (!cancelled) setData(res ?? null)
+        const [res, fileRes] = await Promise.all([
+          fetchAppDataByIdApi(dataId),
+          fetchFilesByDataApi({ tbCode: 'info', dataId }),
+        ])
+        if (!cancelled) {
+          setData(res ?? null)
+          setFiles(fileRes?.items ?? [])
+        }
       } catch (e) {
         console.error(e)
-        if (!cancelled) setData(null)
+        if (!cancelled) {
+          setData(null)
+          setFiles([])
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -96,6 +122,21 @@ export default function AppDataViewPage() {
     )
   }
 
+  const handleDelete = async () => {
+    if (!data?.data_id) return
+    setDeleting(true)
+    try {
+      await deleteAppDataApi(data.data_id)
+      setDeleteConfirmOpen(false)
+      navigate('/apps/info')
+    } catch (e) {
+      console.error(e)
+      alert(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const handleContentImageClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null
     const imgEl = target?.closest('img') as HTMLImageElement | null
@@ -112,15 +153,45 @@ export default function AppDataViewPage() {
           p: 3,
           borderRadius: 3,
           backgroundColor: 'background.paper',
-          maxWidth: 960,
         }}
       >
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
           {data.ap_subject ?? '(제목 없음)'}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: files.length > 0 ? 1 : 3 }}>
           data_id: {data.data_id ?? '-'} · app_id: {data.app_id ?? '-'}
         </Typography>
+        {files.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              첨부파일 ({files.length})
+            </Typography>
+            <Stack direction="row" flexWrap="wrap" gap={1.5} useFlexGap>
+              {files.map((f) => (
+                <Link
+                  key={f.file_id}
+                  href={getDownloadUrl(f.file_id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  underline="hover"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    fontSize: '0.875rem',
+                    color: 'primary.main',
+                  }}
+                >
+                  <InsertDriveFileIcon sx={{ fontSize: 18 }} />
+                  {f.file_name}
+                  <Typography component="span" variant="caption" color="text.secondary">
+                    ({formatFileSize(f.filesize ?? 0)})
+                  </Typography>
+                </Link>
+              ))}
+            </Stack>
+          </Box>
+        )}
 
         <Divider sx={{ my: 2 }} />
 
@@ -184,10 +255,10 @@ export default function AppDataViewPage() {
           </Button>
           <Button
             variant="outlined"
-            color="inherit"
-            onClick={() => navigate(`/apps/info/${data.data_id}/form`)}
+            color="error"
+            onClick={() => setDeleteConfirmOpen(true)}
           >
-            삭 제
+            삭제
           </Button>
           <Button
             variant="outlined"
@@ -207,6 +278,28 @@ export default function AppDataViewPage() {
           
         </Stack>
       </Paper>
+
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => !deleting && setDeleteConfirmOpen(false)}
+      >
+        <Box sx={{ p: 3, minWidth: 320 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            삭제 확인
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 3 }}>
+            이 게시물과 첨부 파일을 모두 삭제합니다. 계속하시겠습니까?
+          </Typography>
+          <Stack direction="row" spacing={1.5} justifyContent="flex-end">
+            <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleting}>
+              취소
+            </Button>
+            <Button variant="contained" color="error" onClick={handleDelete} disabled={deleting}>
+              {deleting ? '삭제 중...' : '삭제'}
+            </Button>
+          </Stack>
+        </Box>
+      </Dialog>
 
       <Dialog
         open={Boolean(previewImage.src)}

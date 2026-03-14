@@ -154,7 +154,6 @@ export default function AppConfigsPage() {
           p: 3,
           borderRadius: 3,
           backgroundColor: 'background.paper',
-          minHeight: '100%',
         }}
       >
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
@@ -235,10 +234,9 @@ export default function AppConfigsPage() {
                 sx={{
                   borderRadius: 2,
                   overflow: 'hidden',
-                  minWidth: 960,
                 }}
               >
-                <Table size="small" sx={{ minWidth: 960 }}>
+                <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f5f7fb' }}>
                       <TableCell padding="checkbox" sx={{ fontWeight: 600, width: 48 }}>

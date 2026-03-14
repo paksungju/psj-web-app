@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import {
   Box,
   Paper,
@@ -17,6 +17,7 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TablePagination,
   List,
   ListItemButton,
   Collapse,
@@ -28,8 +29,14 @@ import FolderIcon from '@mui/icons-material/Folder'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import ArchiveIcon from '@mui/icons-material/Archive'
+import DescriptionIcon from '@mui/icons-material/Description'
+import TableChartIcon from '@mui/icons-material/TableChart'
+import SlideshowIcon from '@mui/icons-material/Slideshow'
+import CodeIcon from '@mui/icons-material/Code'
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import TopBar from '../../components/TopBar'
-import { uploadFileApi, fetchFilesByDataApi, deleteFilesApi, ApiFile } from '../../apis/fileApi'
+import { uploadFileApiWithProgress, fetchFilesByDataApi, deleteFilesApi, ApiFile } from '../../apis/fileApi'
 
 // 폴더 구조 (개인파일 > 프로그래밍/개인정보, 회사파일 > 서식/영업자료/회계자료)
 type FolderNode = {
@@ -58,12 +65,31 @@ const FOLDER_TREE: FolderNode[] = [
   },
 ]
 
+const FILE_TYPE_ICONS: Record<string, ComponentType<{ sx?: object }>> = {
+  exe: CodeIcon,
+  zip: ArchiveIcon,
+  doc: DescriptionIcon,
+  docx: DescriptionIcon,
+  xls: TableChartIcon,
+  ppt: SlideshowIcon,
+  hwp: DescriptionIcon,
+  tar: ArchiveIcon,
+}
+
+function getFileExtension(fileName: string): string {
+  const m = fileName?.match(/\.([a-zA-Z0-9]+)$/)
+  return (m?.[1] ?? '').toLowerCase()
+}
+
 export default function GalleryPage() {
   const [showDropZone, setShowDropZone] = useState(false)
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set(['personal', 'company']))
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [files, setFiles] = useState<ApiFile[]>([])
+  const [totalFiles, setTotalFiles] = useState(0)
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(20)
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null)
   const [menuFileId, setMenuFileId] = useState<number | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
@@ -101,12 +127,16 @@ export default function GalleryPage() {
       await deleteFilesApi({ fileIds: ids })
 
       const data = await fetchFilesByDataApi({
-        tbCode: 'gallery',
+        tbCode: 'file',
         dataId: 0,
+        skip: page * rowsPerPage,
+        limit: rowsPerPage,
       })
-      setFiles(data)
+      setFiles(data.items)
+      setTotalFiles(data.total)
       setSelectedIndexes([])
       setSelectMode(false)
+      if (data.items.length === 0 && page > 0) setPage((p) => Math.max(0, p - 1))
     } catch (error) {
       console.error('파일 삭제 오류:', error)
       window.alert('파일 삭제 중 오류가 발생했습니다.')
@@ -128,12 +158,16 @@ export default function GalleryPage() {
       await deleteFilesApi({ fileIds: [menuFileId] })
 
       const data = await fetchFilesByDataApi({
-        tbCode: 'gallery',
+        tbCode: 'file',
         dataId: 0,
+        skip: page * rowsPerPage,
+        limit: rowsPerPage,
       })
-      setFiles(data)
+      setFiles(data.items)
+      setTotalFiles(data.total)
       setSelectedIndexes([])
       setSelectMode(false)
+      if (data.items.length === 0 && page > 0) setPage((p) => Math.max(0, p - 1))
     } catch (error) {
       console.error('파일 삭제 오류:', error)
       window.alert('파일 삭제 중 오류가 발생했습니다.')
@@ -159,6 +193,14 @@ export default function GalleryPage() {
     setSelectedIndexes((prev) =>
       prev.includes(index) ? prev.filter((v) => v !== index) : [...prev, index],
     )
+  }
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      setSelectedIndexes(files.map((_, i) => i))
+    } else {
+      setSelectedIndexes([])
+    }
   }
 
   const currentPreviewFile =
@@ -187,23 +229,22 @@ export default function GalleryPage() {
     return `http://impsj.net${file.file_url}`
   }
 
-  // 썸네일 URL 계산: /data/<path>/<filename> -> /data/<path>/thumbnail/<filename>
-  const getThumbnailUrl = (file: ApiFile) => {
+  // 파일 다운로드
+  const handleDownload = async (file: ApiFile) => {
     const url = getImageUrl(file)
-    if (!url) return ''
+    if (!url) return
     try {
-      const u = new URL(url)
-      const segments = u.pathname.split('/')
-      if (segments.length >= 3) {
-        // [..., 'data', '<path>', '<filename>']
-        const filename = segments.pop() as string
-        const basePath = segments.join('/')
-        u.pathname = `${basePath}/thumbnail/${filename}`
-        return u.toString()
-      }
-      return url
-    } catch {
-      return url
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('다운로드 실패')
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = file.file_name || 'download'
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (e) {
+      console.error(e)
+      window.open(url, '_blank')
     }
   }
 
@@ -229,19 +270,22 @@ export default function GalleryPage() {
     }
   }
 
-  const uploadSingleFile = async (file: File) => {
-    await uploadFileApi({
-      file,
-      tbCode: 'gallery',
-      dataId: 0,
-      fileNo: 1,
-      fileType: 0,
-      description: file.name || '',
-      save_path: 'gallery',
-    })
-    // 업로드 후 최신 파일 목록 다시 조회
-    const data = await fetchFilesByDataApi({ tbCode: 'gallery', dataId: 0 })
-    setFiles(data)
+  const uploadSingleFile = async (
+    file: File,
+    onProgress?: (loaded: number, total: number) => void,
+  ) => {
+    await uploadFileApiWithProgress(
+      {
+        file,
+        tbCode: 'file',
+        dataId: 0,
+        fileNo: 1,
+        fileType: 0,
+        description: file.name || '',
+        save_path: 'file',
+      },
+      onProgress,
+    )
   }
 
   const handleUploadClick = () => {
@@ -260,17 +304,22 @@ export default function GalleryPage() {
   }
 
   useEffect(() => {
-    const fetchFiles = async () => {
+    const load = async () => {
       try {
-        const data = await fetchFilesByDataApi({ tbCode: 'gallery', dataId: 0 })
-        setFiles(data)
+        const data = await fetchFilesByDataApi({
+          tbCode: 'file',
+          dataId: 0,
+          skip: page * rowsPerPage,
+          limit: rowsPerPage,
+        })
+        setFiles(data.items)
+        setTotalFiles(data.total)
       } catch (error) {
         console.error('파일 목록을 불러오는 중 오류가 발생했습니다:', error)
       }
     }
-
-    fetchFiles()
-  }, [])
+    load()
+  }, [page, rowsPerPage])
   return (
     <Box
       sx={{
@@ -294,6 +343,29 @@ export default function GalleryPage() {
           }}
         >
           <CircularProgress size={64} />
+        </Box>
+      )}
+
+      {isUploading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            bgcolor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            gap: 2,
+          }}
+        >
+          <Typography variant="h6" color="white">
+            업로드 중... {uploadProgress}%
+          </Typography>
+          <Box sx={{ width: 320 }}>
+            <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8, borderRadius: 1 }} />
+          </Box>
         </Box>
       )}
 
@@ -336,16 +408,33 @@ export default function GalleryPage() {
               try {
                 setIsUploading(true)
                 setUploadProgress(0)
-                const total = selectedFiles.length
-                let completed = 0
+                const totalBytes = selectedFiles.reduce((acc, f) => acc + f.size, 0) || 1
+                let completedBytes = 0
+
                 for (const file of selectedFiles) {
-                  await uploadSingleFile(file)
-                  completed += 1
-                  setUploadProgress(Math.round((completed / total) * 100))
+                  const prevBytes = completedBytes
+                  await uploadSingleFile(file, (loaded, total) => {
+                    const fileProgress = total > 0 ? loaded / total : 1
+                    const bytesInThisFile = file.size * fileProgress
+                    const aggregateLoaded = prevBytes + bytesInThisFile
+                    setUploadProgress(Math.round((aggregateLoaded / totalBytes) * 100))
+                  })
+                  completedBytes += file.size
+                  setUploadProgress(Math.round((completedBytes / totalBytes) * 100))
+                  await new Promise((r) => setTimeout(r, 0))
                 }
                 window.alert('파일이 업로드되었습니다.')
                 setSelectedFiles([])
                 setShowDropZone(false)
+                const data = await fetchFilesByDataApi({
+                  tbCode: 'file',
+                  dataId: 0,
+                  skip: 0,
+                  limit: rowsPerPage,
+                })
+                setFiles(data.items)
+                setTotalFiles(data.total)
+                setPage(0)
               } catch (error) {
                 console.error('파일 업로드 오류:', error)
                 window.alert('파일 업로드 중 오류가 발생했습니다.')
@@ -525,14 +614,6 @@ export default function GalleryPage() {
                 </Typography>
               )}
             </Box>
-            {isUploading && (
-              <Box sx={{ mb: 3, width: '100%' }}>
-                <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  업로드 중... {uploadProgress}%
-                </Typography>
-                <LinearProgress variant="determinate" value={uploadProgress} />
-              </Box>
-            )}
           </>
         )}
 
@@ -548,10 +629,17 @@ export default function GalleryPage() {
                   backgroundColor: '#f5f7fb',
                 }}
               >
+                <TableCell padding="checkbox" sx={{ fontWeight: 600, width: 48 }}>
+                  <Checkbox
+                    indeterminate={selectedIndexes.length > 0 && selectedIndexes.length < files.length}
+                    checked={files.length > 0 && selectedIndexes.length === files.length}
+                    onChange={handleSelectAll}
+                  />
+                </TableCell>
                 <TableCell align="center" sx={{ fontWeight: 600, width: 60 }}>
                   NO
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, width: 100 }}>미리보기</TableCell>
+                <TableCell sx={{ fontWeight: 600, width: 100 }}>종류</TableCell>
                 <TableCell sx={{ fontWeight: 600 }} align="center">파일명</TableCell>
                 <TableCell sx={{ fontWeight: 600, width: 120 }}>용량</TableCell>
                 <TableCell sx={{ fontWeight: 600, width: 160 }} align="center">
@@ -563,33 +651,46 @@ export default function GalleryPage() {
             <TableBody>
               {files.map((item, index) => (
                 <TableRow key={item.file_id} hover>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      size="small"
+                      checked={selectedIndexes.includes(index)}
+                      onChange={() => toggleSelected(index)}
+                    />
+                  </TableCell>
                   <TableCell align="center">
-                    {selectMode ? (
-                      <Checkbox
-                        size="small"
-                        checked={selectedIndexes.includes(index)}
-                        onChange={() => toggleSelected(index)}
-                      />
-                    ) : (
-                      index + 1
-                    )}
+                    {page * rowsPerPage + index + 1}
                   </TableCell>
                   <TableCell>
                     <Box
-                      component="img"
-                      src={getThumbnailUrl(item)}
-                      alt={item.file_name}
                       sx={{
                         width: 50,
                         height: 50,
                         borderRadius: 1,
                         cursor: 'pointer',
-                        objectFit: 'cover',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'grey.100',
+                        color: 'grey.600',
+                        '&:hover': { bgcolor: 'grey.200', color: 'primary.main' },
                       }}
-                      onClick={() => setPreviewIndex(index)}
-                    />
+                      onClick={() => handleDownload(item)}
+                    >
+                      {(() => {
+                        const ext = getFileExtension(item.file_name || '')
+                        const IconComponent = FILE_TYPE_ICONS[ext] ?? InsertDriveFileIcon
+                        return <IconComponent sx={{ fontSize: 32 }} />
+                      })()}
+                    </Box>
                   </TableCell>
-                  <TableCell align="center">{item.file_name}</TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{ cursor: 'pointer', color: 'primary.main', textDecoration: 'underline', '&:hover': { color: 'primary.dark' } }}
+                    onClick={() => handleDownload(item)}
+                  >
+                    {item.file_name}
+                  </TableCell>
                   <TableCell>
                     {item.filesize ? `${(item.filesize / 1024).toFixed(1)} KB` : '-'}
                   </TableCell>
@@ -612,6 +713,23 @@ export default function GalleryPage() {
               ))}
             </TableBody>
           </Table>
+        )}
+
+        {files.length > 0 && (
+          <TablePagination
+            component="div"
+            count={totalFiles}
+            page={page}
+            onPageChange={(_, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10))
+              setPage(0)
+            }}
+            rowsPerPageOptions={[10, 20, 50]}
+            labelRowsPerPage="페이지당 행:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
+          />
         )}
 
         <Menu

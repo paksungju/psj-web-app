@@ -13,9 +13,10 @@ import {
   Pagination,
   Snackbar,
   Checkbox,
+  CircularProgress,
 } from '@mui/material'
 import TopBar from '../../components/TopBar'
-import { fetchMailsApi, importMailsApi, type ApiMail } from '../../apis/mailApi'
+import { fetchMailsApi, importMailsApi, deleteMailsApi, type ApiMail } from '../../apis/mailApi'
 import Alert from '@mui/material/Alert'
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -45,6 +46,7 @@ export default function MailsPage() {
   const [loading, setLoading] = useState(true)
   const [importNotice, setImportNotice] = useState<{ message: string; severity: 'success' | 'warning' | 'error' } | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const totalPages = Math.max(1, Math.ceil(total / ROWS_PER_PAGE))
 
@@ -125,6 +127,29 @@ export default function MailsPage() {
 
   const handleWriteMail = () => navigate('/mails/create')
 
+  const handleDeleteSelected = async () => {
+    if (!selectedIds.size) return
+    if (!window.confirm(`선택한 ${selectedIds.size}개의 메일을 삭제하시겠습니까?`)) return
+    try {
+      setIsDeleting(true)
+      const dataIds = Array.from(selectedIds).map((id) => parseInt(id, 10)).filter((n) => !Number.isNaN(n))
+      if (!dataIds.length) return
+      const res = await deleteMailsApi({ dataIds })
+      setSelectedIds(new Set())
+      await refreshList(currentPage)
+      if (res.errors?.length) {
+        setImportNotice({ message: `${res.deleted}건 삭제됨. 일부 실패: ${res.errors.join(', ')}`, severity: 'warning' })
+      } else {
+        setImportNotice({ message: `${res.deleted}건 삭제되었습니다.`, severity: 'success' })
+      }
+    } catch (error) {
+      console.error('메일 삭제 오류:', error)
+      setImportNotice({ message: error instanceof Error ? error.message : '메일 삭제에 실패했습니다.', severity: 'error' })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   useEffect(() => {
     refreshList(currentPage)
   }, [])
@@ -138,6 +163,21 @@ export default function MailsPage() {
       }}
     >
       <TopBar />
+      {isDeleting && (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            bgcolor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}
+        >
+          <CircularProgress size={64} />
+        </Box>
+      )}
       <Paper
         elevation={0}
         sx={{
@@ -162,6 +202,15 @@ export default function MailsPage() {
         </Button>
         <Button variant="outlined" color="inherit" sx={{ mb: 2, ml: 1 }} onClick={handleWriteMail}>
           메일작성
+        </Button>
+        <Button
+          variant="outlined"
+          color="error"
+          sx={{ mb: 2, ml: 1 }}
+          disabled={!selectedIds.size || isDeleting}
+          onClick={handleDeleteSelected}
+        >
+          선택 삭제
         </Button>
 
         {fetchError && (

@@ -68,7 +68,7 @@ export default function GalleryPage() {
         tbCode: 'gallery',
         dataId: 0,
       })
-      setFiles(data)
+      setFiles(data.items)
       setSelectedIndexes([])
       setSelectMode(false)
     } catch (error) {
@@ -95,7 +95,7 @@ export default function GalleryPage() {
         tbCode: 'gallery',
         dataId: 0,
       })
-      setFiles(data)
+      setFiles(data.items)
       setSelectedIndexes([])
       setSelectMode(false)
     } catch (error) {
@@ -188,7 +188,7 @@ export default function GalleryPage() {
     })
     // 업로드 후 최신 파일 목록 다시 조회
     const data = await fetchFilesByDataApi({ tbCode: 'gallery', dataId: 0 })
-    setFiles(data)
+    setFiles(data.items)
   }
 
   const handleUploadClick = () => {
@@ -210,7 +210,7 @@ export default function GalleryPage() {
     const fetchFiles = async () => {
       try {
         const data = await fetchFilesByDataApi({ tbCode: 'gallery', dataId: 0 })
-        setFiles(data)
+        setFiles(data.items)
       } catch (error) {
         console.error('파일 목록을 불러오는 중 오류가 발생했습니다:', error)
       }

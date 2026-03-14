@@ -21,11 +21,16 @@ import {
   type ApiAppData,
   type ApiAppPayload,
 } from '../../../apis/appApi'
+import { fetchAppConfigApi } from '../../../apis/appConfigApi'
+import {
+  uploadImageApi,
+  fetchImagesByDataApi,
+  deleteImagesApi,
+} from '../../../apis/imageApi'
 import {
   uploadFileApi,
   fetchFilesByDataApi,
   deleteFilesApi,
-  type ApiFile,
 } from '../../../apis/fileApi'
 
 const numFields: (keyof ApiAppPayload)[] = [
@@ -117,14 +122,39 @@ export default function AppDataFormPage() {
   const [form, setForm] = useState<ApiAppPayload>({ ...emptyForm })
   const [loading, setLoading] = useState(isEdit || (isReply && !!id))
   const [saving, setSaving] = useState(false)
-  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
-  const [selectedFileId, setSelectedFileId] = useState<string | number | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [attachedImages, setAttachedImages] = useState<AttachedFile[]>([])
+  const [selectedImageId, setSelectedImageId] = useState<string | number | null>(null)
+  const [uploadingImages, setUploadingImages] = useState(false)
+  const [uploadCount, setUploadCount] = useState(1)
+  const [attachmentsBySlot, setAttachmentsBySlot] = useState<AttachedFile[][]>([])
+  const [uploadingAttachments, setUploadingAttachments] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
+  const addingToSlotRef = useRef<number>(0)
   const editorRef = useRef<{ execute: (cmd: string, opts?: { source?: string | string[] }) => void } | null>(null)
 
   const tbCode = 'info'
-  const effectiveDataId = isEdit && !isNaN(dataId) ? dataId : 0
+  const effectiveDataId = isEdit ? (form.data_id ?? dataId ?? 0) : 0
+  const appId = form.app_id ?? 2
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const config = await fetchAppConfigApi(appId)
+        if (cancelled) return
+        const count = config?.upload_count != null && config.upload_count > 0 ? config.upload_count : 1
+        setUploadCount(count)
+        setAttachmentsBySlot((prev) =>
+          Array.from({ length: count }, (_, i) => prev[i] ?? []),
+        )
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [appId])
 
   useEffect(() => {
     if (isReply && id && !isNaN(parseInt(id, 10))) {
@@ -227,16 +257,16 @@ export default function AppDataFormPage() {
 
   useEffect(() => {
     if (!isEdit || isNaN(dataId)) {
-      setAttachedFiles([])
-      setSelectedFileId(null)
+      setAttachedImages([])
+      setSelectedImageId(null)
       return
     }
     let cancelled = false
-    const loadFiles = async () => {
+    const loadImages = async () => {
       try {
-        const files = await fetchFilesByDataApi({ tbCode: 'info', dataId })
+        const images = await fetchImagesByDataApi({ tbCode: 'info', dataId })
         if (cancelled) return
-        const items: AttachedFile[] = files.map((f: ApiFile) => ({
+        const items: AttachedFile[] = images.map((f) => ({
           type: 'uploaded',
           fileId: f.file_id,
           fileUrl: toAbsoluteFileUrl(f.file_url),
@@ -244,18 +274,58 @@ export default function AppDataFormPage() {
           filesize: f.filesize,
           created_at: f.created_at,
         }))
-        setAttachedFiles(items)
-        if (items.length > 0) setSelectedFileId((items[0] as { fileId: number }).fileId)
+        setAttachedImages(items)
+        if (items.length > 0) setSelectedImageId((items[0] as { fileId: number }).fileId)
       } catch (e) {
         console.error(e)
-        if (!cancelled) setAttachedFiles([])
+        if (!cancelled) setAttachedImages([])
       }
     }
-    loadFiles()
+    loadImages()
     return () => { cancelled = true }
   }, [isEdit, dataId])
 
-  const addFiles = useCallback(async (files: FileList | null) => {
+  useEffect(() => {
+    if (!isEdit || isNaN(dataId)) {
+      setAttachmentsBySlot([])
+      return
+    }
+    let cancelled = false
+    const loadAttachments = async () => {
+      try {
+        const res = await fetchFilesByDataApi({ tbCode: 'info', dataId, limit: 200 })
+        if (cancelled) return
+        const bySlot: AttachedFile[][] = []
+        for (const f of res.items) {
+          const fileNo = f.file_no ?? 1
+          const idx = Math.max(0, fileNo - 1)
+          while (bySlot.length <= idx) bySlot.push([])
+          const slot = bySlot[idx]
+          if (slot) {
+            slot.push({
+              type: 'uploaded',
+              fileId: f.file_id,
+              fileUrl: toAbsoluteFileUrl(f.file_url),
+              fileName: f.file_name,
+              filesize: f.filesize,
+              created_at: f.created_at,
+            })
+          }
+        }
+        setAttachmentsBySlot((prev) => {
+          const slotCount = Math.max(prev.length, bySlot.length, 1)
+          return Array.from({ length: slotCount }, (_, i) => bySlot[i] ?? prev[i] ?? [])
+        })
+      } catch (e) {
+        console.error(e)
+        if (!cancelled) setAttachmentsBySlot([])
+      }
+    }
+    loadAttachments()
+    return () => { cancelled = true }
+  }, [isEdit, dataId, uploadCount])
+
+  const addImages = useCallback(async (files: FileList | null) => {
     if (!files?.length) return
     const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     const toAdd: AttachedFile[] = []
@@ -269,20 +339,20 @@ export default function AppDataFormPage() {
         objectUrl: URL.createObjectURL(f),
       })
     }
-    setAttachedFiles((prev) => [...prev, ...toAdd])
+    setAttachedImages((prev) => [...prev, ...toAdd])
     const first = toAdd[0]
-    if (first && selectedFileId === null) setSelectedFileId(first.type === 'local' ? first.id : first.fileId)
-    setUploading(true)
+    if (first && selectedImageId === null) setSelectedImageId(first.type === 'local' ? first.id : first.fileId)
+    setUploadingImages(true)
     try {
       for (const item of toAdd) {
         if (item.type !== 'local') continue
-        const res = await uploadFileApi({
+        const res = await uploadImageApi({
           file: item.file,
           tbCode,
           dataId: effectiveDataId,
-          save_path: 'gallery',
+          save_path: 'info',
         })
-        setAttachedFiles((prev) =>
+        setAttachedImages((prev) =>
           prev.map((x) =>
             x.type === 'local' && x.id === item.id
               ? {
@@ -299,50 +369,136 @@ export default function AppDataFormPage() {
       }
     } catch (e) {
       console.error(e)
-      alert('파일 업로드에 실패했습니다.')
+      alert('이미지 업로드에 실패했습니다.')
     } finally {
-      setUploading(false)
+      setUploadingImages(false)
     }
-  }, [effectiveDataId, selectedFileId])
+  }, [effectiveDataId, selectedImageId])
 
-  const handleDeleteFile = useCallback(async (item: AttachedFile) => {
+  const addAttachmentForSlot = useCallback(async (slotIndex: number, files: FileList | null) => {
+    if (!files?.length) return
+    const toAdd: AttachedFile[] = []
+    for (let i = 0; i < files.length; i++) {
+      const f = files.item(i)
+      if (!f) continue
+      toAdd.push({
+        type: 'local',
+        id: `attach-local-${Date.now()}-${slotIndex}-${i}`,
+        file: f,
+        objectUrl: URL.createObjectURL(f),
+      })
+    }
+    setAttachmentsBySlot((prev) => {
+      const next = [...prev]
+      while (next.length <= slotIndex) next.push([])
+      next[slotIndex] = [...(next[slotIndex] ?? []), ...toAdd]
+      return next
+    })
+    if (effectiveDataId === 0) {
+      return
+    }
+    const fileNo = slotIndex + 1
+    setUploadingAttachments(true)
+    try {
+      for (const item of toAdd) {
+        if (item.type !== 'local') continue
+        const res = await uploadFileApi({
+          file: item.file,
+          tbCode,
+          dataId: effectiveDataId,
+          fileNo,
+          save_path: 'info',
+        })
+        setAttachmentsBySlot((prev) => {
+          const next = [...prev]
+          const slot = next[slotIndex] ?? []
+          next[slotIndex] = slot.map((x) =>
+            x.type === 'local' && x.id === item.id
+              ? {
+                  type: 'uploaded' as const,
+                  fileId: res.file_id,
+                  fileUrl: toAbsoluteFileUrl(res.file_url),
+                  fileName: res.file_name,
+                  filesize: res.filesize,
+                  created_at: res.created_at,
+                }
+              : x,
+          )
+          return next
+        })
+      }
+    } catch (e) {
+      console.error(e)
+      alert('첨부파일 업로드에 실패했습니다.')
+    } finally {
+      setUploadingAttachments(false)
+    }
+  }, [effectiveDataId])
+
+  const handleDeleteImage = useCallback(async (item: AttachedFile) => {
     if (item.type === 'uploaded') {
       try {
-        await deleteFilesApi({ fileIds: [item.fileId] })
-        setAttachedFiles((prev) => prev.filter((x) => x.type !== 'uploaded' || x.fileId !== item.fileId))
-        if (selectedFileId === item.fileId) setSelectedFileId(null)
+        await deleteImagesApi({ fileIds: [item.fileId] })
+        setAttachedImages((prev) => prev.filter((x) => x.type !== 'uploaded' || x.fileId !== item.fileId))
+        if (selectedImageId === item.fileId) setSelectedImageId(null)
       } catch (e) {
         console.error(e)
-        alert('파일 삭제에 실패했습니다.')
+        alert('이미지 삭제에 실패했습니다.')
       }
     } else {
       URL.revokeObjectURL(item.objectUrl)
-      setAttachedFiles((prev) => prev.filter((x) => x.type !== 'local' || x.id !== item.id))
-      if (selectedFileId === item.id) setSelectedFileId(null)
+      setAttachedImages((prev) => prev.filter((x) => x.type !== 'local' || x.id !== item.id))
+      if (selectedImageId === item.id) setSelectedImageId(null)
     }
-  }, [selectedFileId])
+  }, [selectedImageId])
+
+  const handleDeleteAttachment = useCallback(async (slotIndex: number, item: AttachedFile) => {
+    if (item.type === 'uploaded') {
+      try {
+        await deleteFilesApi({ fileIds: [item.fileId] })
+        setAttachmentsBySlot((prev) => {
+          const next = [...prev]
+          const slot = next[slotIndex] ?? []
+          next[slotIndex] = slot.filter((x) => x.type !== 'uploaded' || x.fileId !== item.fileId)
+          return next
+        })
+      } catch (e) {
+        console.error(e)
+        alert('첨부파일 삭제에 실패했습니다.')
+      }
+    } else {
+      URL.revokeObjectURL(item.objectUrl)
+      setAttachmentsBySlot((prev) => {
+        const next = [...prev]
+        const slot = next[slotIndex] ?? []
+        next[slotIndex] = slot.filter((x) => x.type !== 'local' || x.id !== item.id)
+        return next
+      })
+    }
+  }, [])
 
   const handleInsertToEditor = useCallback(() => {
-    if (selectedFileId == null) {
-      alert('삽입할 파일을 선택해 주세요.')
+    if (selectedImageId == null) {
+      alert('삽입할 이미지를 선택해 주세요.')
       return
     }
-    const item = attachedFiles.find(
-      (x) => (x.type === 'local' && x.id === selectedFileId) || (x.type === 'uploaded' && x.fileId === selectedFileId),
+    const item = attachedImages.find(
+      (x) => (x.type === 'local' && x.id === selectedImageId) || (x.type === 'uploaded' && x.fileId === selectedImageId),
     )
     if (!item) return
     if (item.type === 'local') {
-      alert('파일 업로드 완료 후 삽입할 수 있습니다.')
+      alert('이미지 업로드 완료 후 삽입할 수 있습니다.')
       return
     }
+    const img = `<p><img src="${item.fileUrl}" alt="${item.fileName.replace(/"/g, '&quot;')}" /></p>`
     const editor = editorRef.current
-    if (editor?.execute) {
-      editor.execute('insertImage', { source: item.fileUrl })
+    if (editor) {
+      const currentData = editor.getData()
+      editor.setData((currentData ?? '') + img)
     } else {
-      const img = `<p><img src="${item.fileUrl}" alt="${item.fileName.replace(/"/g, '&quot;')}" /></p>`
       setForm((prev) => ({ ...prev, ap_content: (prev.ap_content ?? '') + img }))
     }
-  }, [attachedFiles, selectedFileId])
+  }, [attachedImages, selectedImageId])
 
   const handleChange = (field: keyof ApiAppPayload) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -397,6 +553,27 @@ export default function AppDataFormPage() {
         }
         const created = await createAppDataApi(payload, apiParams)
         savedId = created.data_id ?? 0
+        if (savedId) {
+          for (let slotIndex = 0; slotIndex < attachmentsBySlot.length; slotIndex++) {
+            const slot = attachmentsBySlot[slotIndex] ?? []
+            const fileNo = slotIndex + 1
+            for (const item of slot) {
+              if (item.type !== 'local') continue
+              try {
+                await uploadFileApi({
+                  file: item.file,
+                  tbCode,
+                  dataId: savedId,
+                  fileNo,
+                  save_path: 'info',
+                })
+              } catch (e) {
+                console.error(e)
+                alert('첨부파일 업로드에 실패했습니다.')
+              }
+            }
+          }
+        }
       }
       if (savedId) {
         navigate(`/apps/info/${savedId}`)
@@ -430,7 +607,6 @@ export default function AppDataFormPage() {
           p: 3,
           borderRadius: 3,
           backgroundColor: 'background.paper',
-          maxWidth: 960,
         }}
       >
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
@@ -472,7 +648,7 @@ export default function AppDataFormPage() {
             <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
               내용
             </Typography>
-            <Box sx={{ '& .ck-editor': { backgroundColor: 'grey.50' }, '& .ck.ck-editor__editable': { minHeight: 200 } }}>
+            <Box sx={{ '& .ck-editor': { backgroundColor: 'grey.50' }, '& .ck.ck-editor__editable': { minHeight: 300 } }}>
               <CKEditor
                 key={loading ? 'loading' : `edit-${form.data_id ?? 'new'}`}
                 editor={ClassicEditor}
@@ -514,40 +690,17 @@ export default function AppDataFormPage() {
           </Box>
 
           <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              첨부 이미지
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+              이미지
             </Typography>
-            {/* <Box
-              onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
-              onDrop={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                addFiles(e.dataTransfer.files)
-              }}
-              sx={{
-                border: '1px dashed',
-                borderColor: 'divider',
-                borderRadius: 2,
-                bgcolor: 'grey.50',
-                py: 3,
-                textAlign: 'center',
-                cursor: 'pointer',
-                '&:hover': { bgcolor: 'grey.100' },
-              }}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Typography variant="body2" color="text.secondary">
-                Drag File
-              </Typography>
-            </Box> */}
             <input
-              ref={fileInputRef}
+              ref={imageInputRef}
               type="file"
               accept="image/*"
               multiple
               style={{ display: 'none' }}
               onChange={(e) => {
-                addFiles(e.target.files)
+                addImages(e.target.files)
                 e.target.value = ''
               }}
             />
@@ -555,16 +708,16 @@ export default function AppDataFormPage() {
               <Button
                 size="small"
                 variant="outlined"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
+                onClick={() => imageInputRef.current?.click()}
+                disabled={uploadingImages}
               >
-                +파일등록
+                +이미지등록
               </Button>
               <Button
                 size="small"
                 variant="outlined"
                 onClick={handleInsertToEditor}
-                disabled={attachedFiles.length === 0 || selectedFileId == null}
+                disabled={attachedImages.length === 0 || selectedImageId == null}
               >
                 에디터삽입
               </Button>
@@ -584,12 +737,12 @@ export default function AppDataFormPage() {
                   overflow: 'hidden',
                 }}
               >
-                {selectedFileId != null ? (
+                {selectedImageId != null ? (
                   (() => {
-                    const item = attachedFiles.find(
+                    const item = attachedImages.find(
                       (x) =>
-                        (x.type === 'local' && x.id === selectedFileId) ||
-                        (x.type === 'uploaded' && x.fileId === selectedFileId),
+                        (x.type === 'local' && x.id === selectedImageId) ||
+                        (x.type === 'uploaded' && x.fileId === selectedImageId),
                     )
                     if (!item) return <Typography variant="caption" color="text.secondary">미리보기</Typography>
                     const src = item.type === 'local' ? item.objectUrl : item.fileUrl
@@ -609,23 +762,23 @@ export default function AppDataFormPage() {
                   overflow: 'auto',
                 }}
               >
-                {attachedFiles.length === 0 ? (
+                {attachedImages.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                    첨부된 파일이 없습니다.
+                    등록된 이미지 파일이 없습니다.
                   </Typography>
                 ) : (
                   <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
-                    {attachedFiles.map((item) => {
+                    {attachedImages.map((item) => {
                       const id = item.type === 'local' ? item.id : item.fileId
                       const name = item.type === 'local' ? item.file.name : item.fileName
                       const size = item.type === 'local' ? item.file.size : item.filesize
                       const date = item.type === 'local' ? formatDate(new Date().toISOString()) : formatDate(item.created_at)
-                      const selected = selectedFileId === id
+                      const selected = selectedImageId === id
                       return (
                         <Box
                           component="li"
                           key={id}
-                          onClick={() => setSelectedFileId(id)}
+                          onClick={() => setSelectedImageId(id)}
                           sx={{
                             display: 'flex',
                             alignItems: 'center',
@@ -642,7 +795,7 @@ export default function AppDataFormPage() {
                           <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</Typography>
                           <Typography variant="caption" color="text.secondary">{formatFileSize(size)}</Typography>
                           <Typography variant="caption" color="text.secondary">{date}</Typography>
-                          <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleDeleteFile(item) }} title="삭제">
+                          <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleDeleteImage(item) }} title="삭제">
                             <DeleteOutlineIcon fontSize="small" />
                           </IconButton>
                         </Box>
@@ -652,6 +805,91 @@ export default function AppDataFormPage() {
                 )}
               </Box>
             </Stack>
+          </Box>
+
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+              첨부파일
+            </Typography>
+            <input
+              ref={attachmentInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                addAttachmentForSlot(addingToSlotRef.current, e.target.files)
+                e.target.value = ''
+              }}
+            />
+            {Array.from({ length: uploadCount }, (_, slotIndex) => (
+              <Box key={slotIndex} sx={{ mb: 2 }}>
+                <Stack direction="row" spacing={1.5} alignItems="stretch" useFlexGap>
+                  <Box sx={{ flexShrink: 0, minHeight: 40, display: 'flex' }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => {
+                        addingToSlotRef.current = slotIndex
+                        attachmentInputRef.current?.click()
+                      }}
+                      disabled={uploadingAttachments}
+                      sx={{ height: '100%', minHeight: 40 }}
+                    >
+                      +첨부파일 {slotIndex + 1}
+                    </Button>
+                  </Box>
+                  <Box
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      minHeight: 40,
+                      maxHeight: 40,
+                      overflow: 'auto',
+                    }}
+                  >
+                  {(attachmentsBySlot[slotIndex] ?? []).length === 0 ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>
+                      등록된 첨부파일이 없습니다.
+                    </Typography>
+                  ) : (
+                    <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
+                      {(attachmentsBySlot[slotIndex] ?? []).map((item) => {
+                        const id = item.type === 'local' ? item.id : item.fileId
+                        const name = item.type === 'local' ? item.file.name : item.fileName
+                        const size = item.type === 'local' ? item.file.size : item.filesize
+                        const date = item.type === 'local' ? formatDate(new Date().toISOString()) : formatDate(item.created_at)
+                        return (
+                          <Box
+                            component="li"
+                            key={id}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              px: 1.5,
+                              py: 0.75,
+                              borderBottom: '1px solid',
+                              borderColor: 'divider',
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</Typography>
+                            <Typography variant="caption" color="text.secondary">{formatFileSize(size)}</Typography>
+                            <Typography variant="caption" color="text.secondary">{date}</Typography>
+                            <IconButton size="small" onClick={() => handleDeleteAttachment(slotIndex, item)} title="삭제">
+                              <DeleteOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        )
+                      })}
+                    </Box>
+                  )}
+                  </Box>
+                </Stack>
+              </Box>
+            ))}
           </Box>
 
         </Stack>
