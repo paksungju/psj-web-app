@@ -5,14 +5,12 @@ import {
   Typography,
   TextField,
   IconButton,
-  List,
-  ListItem,
-  ListItemText,
   Avatar,
   CircularProgress,
 } from '@mui/material'
 import TopBar from '../../components/TopBar'
 import SendIcon from '@mui/icons-material/Send'
+import { Virtuoso } from 'react-virtuoso'
 
 interface ChatMessage {
   id: number
@@ -275,7 +273,8 @@ export default function ChatPage() {
         <Paper
           variant="outlined"
           sx={{
-            flexGrow: 1,
+            height: 'calc(100vh - 240px)',
+            minHeight: 420,
             mb: 2,
             borderRadius: 2,
             display: 'flex',
@@ -283,75 +282,65 @@ export default function ChatPage() {
             overflow: 'hidden',
           }}
         >
-          <List
-            sx={{
-              flexGrow: 1,
-              overflowY: 'auto',
-              p: 2,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-            }}
-          >
-            {messages.map((msg) => {
-              const isMe = msg.author === 'me'
-              return (
-                <ListItem
-                  key={msg.id}
-                  sx={{
-                    display: 'flex',
-                    justifyContent: isMe ? 'flex-end' : 'flex-start',
-                  }}
-                >
-                  {!isMe && (
-                    <Avatar
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        mr: 1,
-                        bgcolor: 'primary.main',
-                        fontSize: 14,
-                      }}
-                    >
-                      B
-                    </Avatar>
-                  )}
+          <Box sx={{ flex: 1, minHeight: 0, p: 2, pr: 3 }}>
+            <Virtuoso
+              data={messages}
+              followOutput
+              style={{ height: '100%', width: '100%' }}
+              itemContent={(_index, msg) => {
+                const isMe = msg.author === 'me'
+                return (
                   <Box
                     sx={{
-                      maxWidth: '70%',
                       display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: isMe ? 'flex-end' : 'flex-start',
+                      justifyContent: isMe ? 'flex-end' : 'flex-start',
+                      mb: 1,
                     }}
                   >
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        px: 1.5,
-                        py: 1,
-                        borderRadius: 2,
-                        backgroundColor: isMe ? 'primary.main' : 'grey.100',
-                        color: isMe ? 'primary.contrastText' : 'text.primary',
-                      }}
-                    >
-                      <ListItemText
-                        primary={msg.text}
-                        primaryTypographyProps={{
+                    {!isMe && (
+                      <Avatar
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          mr: 1,
+                          bgcolor: 'primary.main',
                           fontSize: 14,
                         }}
-                      />
-                    </Paper>
-                    <Typography
-                      variant="caption"
-                      sx={{ mt: 0.25, color: 'text.secondary' }}
+                      >
+                        B
+                      </Avatar>
+                    )}
+                    <Box
+                      sx={{
+                        maxWidth: '70%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: isMe ? 'flex-end' : 'flex-start',
+                      }}
                     >
-                      {msg.time}
-                    </Typography>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          px: 1.5,
+                          py: 1,
+                          borderRadius: 2,
+                          backgroundColor: isMe ? 'primary.main' : 'grey.100',
+                          color: isMe ? 'primary.contrastText' : 'text.primary',
+                        }}
+                      >
+                        <Typography sx={{ fontSize: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {msg.text}
+                        </Typography>
+                      </Paper>
+                      <Typography variant="caption" sx={{ mt: 0.25, color: 'text.secondary' }}>
+                        {msg.time}
+                      </Typography>
+                    </Box>
                   </Box>
-                </ListItem>
-              )
-            })}
-          </List>
+                )
+              }}
+            />
+          </Box>
 
           <Box
             sx={{

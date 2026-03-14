@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -13,6 +13,8 @@ import {
   Pagination,
   Stack,
   Checkbox,
+  List,
+  ListItemButton,
 } from '@mui/material'
 import TopBar from '../../../components/TopBar'
 import {
@@ -42,10 +44,33 @@ export default function AppConfigsPage() {
   const [pageSize] = useState(10)
   const [hasNextPage, setHasNextPage] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+
+  const normalizeCategory = (value: string | null | undefined): string => {
+    const trimmed = value?.trim()
+    return trimmed ? trimmed : '미분류'
+  }
+
+  const categoryItems = useMemo(() => {
+    const counts = new Map<string, number>()
+    list.forEach((row) => {
+      const key = normalizeCategory(row.cate1)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    })
+    const dynamicItems = Array.from(counts.entries())
+      .sort(([a], [b]) => a.localeCompare(b, 'ko'))
+      .map(([key, count]) => ({ key, label: key, count }))
+    return [{ key: 'all', label: '전체', count: list.length }, ...dynamicItems]
+  }, [list])
+
+  const filteredList = useMemo(() => {
+    if (selectedCategory === 'all') return list
+    return list.filter((row) => normalizeCategory(row.cate1) === selectedCategory)
+  }, [list, selectedCategory])
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.checked) {
-      const ids = new Set(list.map((r) => r.data_id).filter((id): id is number => id != null))
+      const ids = new Set(filteredList.map((r) => r.data_id).filter((id): id is number => id != null))
       setSelectedIds(ids)
     } else {
       setSelectedIds(new Set())
@@ -78,6 +103,12 @@ export default function AppConfigsPage() {
   useEffect(() => {
     refreshList()
   }, [page, pageSize])
+
+  useEffect(() => {
+    if (selectedCategory === 'all') return
+    const exists = categoryItems.some((item) => item.key === selectedCategory)
+    if (!exists) setSelectedCategory('all')
+  }, [categoryItems, selectedCategory])
 
   const handleDeleteSelected = async () => {
     const ids = Array.from(selectedIds)
@@ -150,96 +181,146 @@ export default function AppConfigsPage() {
           선택삭제
         </Button>
 
-        {loading ? (
-          <Typography color="text.secondary">로딩 중...</Typography>
-        ) : list.length === 0 ? (
-          <Box sx={{ py: 6, textAlign: 'center' }}>
-            <Typography color="text.secondary">등록된 데이터가 없습니다.</Typography>
-          </Box>
-        ) : (
+        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
           <Paper
             variant="outlined"
             sx={{
+              width: 220,
+              flexShrink: 0,
               borderRadius: 2,
               overflow: 'hidden',
-              minWidth: 960,
             }}
           >
-            <Table size="small" sx={{ minWidth: 960 }}>
-              <TableHead>
-                <TableRow sx={{ backgroundColor: '#f5f7fb' }}>
-                  <TableCell padding="checkbox" sx={{ fontWeight: 600, width: 48 }}>
-                    <Checkbox
-                      indeterminate={selectedIds.size > 0 && selectedIds.size < list.length}
-                      checked={list.length > 0 && selectedIds.size === list.length}
-                      onChange={handleSelectAll}
-                    />
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, width: 70 }}>
-                    data_id
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, width: 70 }}>
-                    app_id
-                  </TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, minWidth: 180 }}>제목</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>작성자</TableCell>
-                  <TableCell align="center" sx={{ fontWeight: 600, width: 120 }}>등록일</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {list.map((row) => {
-                  const replyDepth = (() => {
-                    const rc = row.reply_cd
-                    if (rc == null) return 0
-                    const s = String(rc).trim()
-                    if (s === '' || s === '0') return 0
-                    return s.length
-                  })()
-                  return (
-                  <TableRow key={row.data_id ?? row.app_id ?? 0} hover>
-                    <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={row.data_id != null && selectedIds.has(row.data_id)}
-                        onChange={() => row.data_id != null && handleSelectOne(row.data_id)}
-                        disabled={row.data_id == null}
-                      />
-                    </TableCell>
-                    <TableCell align="center">{row.data_id ?? '-'}</TableCell>
-                    <TableCell align="center">{row.app_id ?? '-'}</TableCell>
-                    <TableCell
-                      onClick={() =>
-                        row.data_id != null && navigate(`/apps/info/${row.data_id}`)
-                      }
-                      sx={{
-                        cursor: row.data_id != null ? 'pointer' : 'default',
-                        color: row.data_id != null ? 'primary.main' : 'text.primary',
-                        fontWeight: 600,
-                        pl: 2 + replyDepth * 2,
-                      }}
-                    >
-                      {row.ap_subject ?? '-'}
-                    </TableCell>
-                    <TableCell>{row.user_nm ?? '-'}</TableCell>
-                    <TableCell align="center">{formatDate(row.regist_dt)}</TableCell>
-                  </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-            {!loading && list.length > 0 && (
-              <Stack spacing={2} sx={{ p: 2, alignItems: 'center' }}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={handlePageChange}
-                  color="primary"
-                  showFirstButton
-                  showLastButton
-                />
-              </Stack>
-            )}
+            <Box sx={{ px: 1.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                분류
+              </Typography>
+            </Box>
+            <List dense disablePadding sx={{ py: 0.5 }}>
+              {categoryItems.map((item) => (
+                <ListItemButton
+                  key={item.key}
+                  selected={selectedCategory === item.key}
+                  onClick={() => setSelectedCategory(item.key)}
+                  sx={{
+                    mx: 0.5,
+                    borderRadius: 1,
+                    py: 0.75,
+                    '&.Mui-selected': { bgcolor: 'action.selected' },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: 1 }}>
+                    <Typography variant="body2" noWrap>{item.label}</Typography>
+                    <Typography variant="caption" color="text.secondary">{item.count}</Typography>
+                  </Box>
+                </ListItemButton>
+              ))}
+            </List>
           </Paper>
-        )}
+
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            {loading ? (
+              <Typography color="text.secondary">로딩 중...</Typography>
+            ) : list.length === 0 ? (
+              <Box sx={{ py: 6, textAlign: 'center' }}>
+                <Typography color="text.secondary">등록된 데이터가 없습니다.</Typography>
+              </Box>
+            ) : filteredList.length === 0 ? (
+              <Box sx={{ py: 6, textAlign: 'center' }}>
+                <Typography color="text.secondary">선택한 분류에 데이터가 없습니다.</Typography>
+              </Box>
+            ) : (
+              <Paper
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  minWidth: 960,
+                }}
+              >
+                <Table size="small" sx={{ minWidth: 960 }}>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f5f7fb' }}>
+                      <TableCell padding="checkbox" sx={{ fontWeight: 600, width: 48 }}>
+                        <Checkbox
+                          indeterminate={
+                            filteredList.some((row) => row.data_id != null && selectedIds.has(row.data_id)) &&
+                            !filteredList.every((row) => row.data_id != null && selectedIds.has(row.data_id))
+                          }
+                          checked={
+                            filteredList.length > 0 &&
+                            filteredList.every((row) => row.data_id != null && selectedIds.has(row.data_id))
+                          }
+                          onChange={handleSelectAll}
+                        />
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, width: 70 }}>
+                        data_id
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, width: 70 }}>
+                        app_id
+                      </TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, minWidth: 180 }}>제목</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>작성자</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, width: 120 }}>등록일</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredList.map((row) => {
+                      const replyDepth = (() => {
+                        const rc = row.reply_cd
+                        if (rc == null) return 0
+                        const s = String(rc).trim()
+                        if (s === '' || s === '0') return 0
+                        return s.length
+                      })()
+                      return (
+                        <TableRow key={row.data_id ?? row.app_id ?? 0} hover>
+                          <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={row.data_id != null && selectedIds.has(row.data_id)}
+                              onChange={() => row.data_id != null && handleSelectOne(row.data_id)}
+                              disabled={row.data_id == null}
+                            />
+                          </TableCell>
+                          <TableCell align="center">{row.data_id ?? '-'}</TableCell>
+                          <TableCell align="center">{row.app_id ?? '-'}</TableCell>
+                          <TableCell
+                            onClick={() =>
+                              row.data_id != null && navigate(`/apps/info/${row.data_id}`)
+                            }
+                            sx={{
+                              cursor: row.data_id != null ? 'pointer' : 'default',
+                              color: row.data_id != null ? 'primary.main' : 'text.primary',
+                              fontWeight: 600,
+                              pl: 2 + replyDepth * 2,
+                            }}
+                          >
+                            {row.ap_subject ?? '-'}
+                          </TableCell>
+                          <TableCell>{row.user_nm ?? '-'}</TableCell>
+                          <TableCell align="center">{formatDate(row.regist_dt)}</TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+                {!loading && list.length > 0 && (
+                  <Stack spacing={2} sx={{ p: 2, alignItems: 'center' }}>
+                    <Pagination
+                      count={totalPages}
+                      page={page}
+                      onChange={handlePageChange}
+                      color="primary"
+                      showFirstButton
+                      showLastButton
+                    />
+                  </Stack>
+                )}
+              </Paper>
+            )}
+          </Box>
+        </Box>
       </Paper>
     </Box>
   )

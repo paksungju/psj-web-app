@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react'
-import { Box, Paper, Typography, Button } from '@mui/material'
+import { useEffect, useState, useCallback } from 'react'
+import { Box, Paper, Typography, Button, Dialog, DialogTitle, DialogContent, TextField } from '@mui/material'
+import { fetchAppDataListApi, createAppDataApi, updateAppDataApi, type ApiAppPayload } from '../../apis/appApi'
+
+const CALENDAR_APP_ID = 6
 
 type ScheduleCategory = 'meeting' | 'task' | 'event' | 'reminder'
 type SchedulePriority = 'high' | 'medium' | 'low'
@@ -20,75 +23,41 @@ interface Schedule {
   attendees?: string[]
 }
 
-type ViewMode = 'month' | 'week' | 'list'
+/** YYYYMMDD(8자) → YYYY-MM-DD 변환 (DB VARCHAR(8) 저장 형식) */
+function normalizeDateStr(s: string | null | undefined): string {
+  if (!s || !s.trim()) return ''
+  const t = s.trim().replace(/-/g, '')
+  if (t.length === 8) return `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`
+  return s
+}
 
-const sampleSchedules: Schedule[] = [
-  {
-    id: 1,
-    title: '프로젝트 회의',
-    description: '분기별 프로젝트 진행 상황 점검 및 다음 단계 논의',
-    startDate: '2024-03-25',
-    endDate: '2024-03-25',
-    startTime: '14:00',
-    endTime: '16:00',
-    category: 'meeting',
-    priority: 'high',
-    status: 'scheduled',
-    location: '회의실 A',
-    attendees: ['김철수', '이영희', '박민수'],
-  },
-  {
-    id: 2,
-    title: '클라이언트 프레젠테이션',
-    description: '신규 서비스 제안서 발표',
-    startDate: '2024-03-26',
-    endDate: '2024-03-26',
-    startTime: '10:00',
-    endTime: '11:30',
-    category: 'meeting',
-    priority: 'high',
-    status: 'scheduled',
-    location: '본사 대회의실',
-  },
-  {
-    id: 3,
-    title: 'UI/UX 디자인 리뷰',
-    description: '모바일 앱 디자인 최종 검토',
-    startDate: '2024-03-27',
-    endDate: '2024-03-27',
-    startTime: '15:00',
-    endTime: '17:00',
-    category: 'task',
+/** ApiAppData → Schedule 변환 (start_date, end_date, start_time, end_time 컬럼 사용) */
+function appDataToSchedule(item: {
+  data_id?: number
+  ap_subject?: string | null
+  ap_content?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  extra_1?: string | null
+}): Schedule {
+  const category = (item.extra_1 as ScheduleCategory) || 'task'
+  return {
+    id: item.data_id ?? 0,
+    title: item.ap_subject ?? '',
+    description: item.ap_content ?? '',
+    startDate: normalizeDateStr(item.start_date) || '',
+    endDate: normalizeDateStr(item.end_date) || '',
+    startTime: item.start_time ?? '09:00',
+    endTime: item.end_time ?? '18:00',
+    category,
     priority: 'medium',
     status: 'scheduled',
-    attendees: ['정수민', '김철수'],
-  },
-  {
-    id: 4,
-    title: '팀 빌딩 이벤트',
-    description: '분기별 팀워크 향상을 위한 야외 활동',
-    startDate: '2024-03-29',
-    endDate: '2024-03-29',
-    startTime: '13:00',
-    endTime: '18:00',
-    category: 'event',
-    priority: 'medium',
-    status: 'scheduled',
-    location: '한강공원',
-  },
-  {
-    id: 5,
-    title: '보고서 제출 마감',
-    description: '월간 실적 보고서 작성 및 제출',
-    startDate: '2024-03-31',
-    endDate: '2024-03-31',
-    startTime: '18:00',
-    endTime: '18:00',
-    category: 'reminder',
-    priority: 'high',
-    status: 'scheduled',
-  },
-]
+  }
+}
+
+type ViewMode = 'month' | 'week' | 'list'
 
 function getCategoryColor(category: ScheduleCategory) {
   const colors: Record<ScheduleCategory, { bg: string; text: string }> = {
@@ -132,20 +101,100 @@ function getStatusBadge(status: ScheduleStatus) {
   )
 }
 
+function isDateInRange(dateStr: string, start: string, end: string): boolean {
+  return dateStr >= start && dateStr <= end
+}
+
 export default function CalendarPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [loading, setLoading] = useState(false)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>('month')
 
+  // 드래그 선택
+  const [dragStart, setDragStart] = useState<string | null>(null)
+  const [dragEnd, setDragEnd] = useState<string | null>(null)
+  const isDragging = dragStart !== null
+
+  // 팝업 (시작일, 종료일, 제목, 내용 폼)
+  const [popupOpen, setPopupOpen] = useState(false)
+  const [popupRange, setPopupRange] = useState<{ start: string; end: string } | null>(null)
+  const [popupEditingSchedule, setPopupEditingSchedule] = useState<Schedule | null>(null)
+  const [popupStartDate, setPopupStartDate] = useState('')
+  const [popupEndDate, setPopupEndDate] = useState('')
+  const [popupTitle, setPopupTitle] = useState('')
+  const [popupContent, setPopupContent] = useState('')
+
   useEffect(() => {
-    setLoading(true)
-    const timer = setTimeout(() => {
-      setSchedules(sampleSchedules)
-      setLoading(false)
-    }, 300)
-    return () => clearTimeout(timer)
+    if (popupRange && !popupEditingSchedule) {
+      setPopupStartDate(popupRange.start)
+      setPopupEndDate(popupRange.end)
+      setPopupTitle('')
+      setPopupContent('')
+    }
+  }, [popupRange, popupEditingSchedule])
+
+  const handleScheduleClick = useCallback((schedule: Schedule, e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setPopupEditingSchedule(schedule)
+    setPopupStartDate(schedule.startDate)
+    setPopupEndDate(schedule.endDate)
+    setPopupTitle(schedule.title)
+    setPopupContent(schedule.description)
+    setPopupOpen(true)
   }, [])
+
+  const selectedStart = dragStart && dragEnd ? (dragStart <= dragEnd ? dragStart : dragEnd) : dragStart
+  const selectedEnd = dragStart && dragEnd ? (dragStart <= dragEnd ? dragEnd : dragStart) : dragStart
+
+  const handleCellMouseDown = useCallback((dateStr: string) => {
+    setDragStart(dateStr)
+    setDragEnd(dateStr)
+  }, [])
+
+  const handleCellMouseEnter = useCallback(
+    (dateStr: string) => {
+      if (isDragging && dragStart) {
+        setDragEnd(dateStr)
+      }
+    },
+    [isDragging, dragStart],
+  )
+
+  const fetchSchedules = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await fetchAppDataListApi({ skip: 0, limit: 500, app_id: CALENDAR_APP_ID })
+      setSchedules((data ?? []).map(appDataToSchedule))
+    } catch (e) {
+      console.error('일정 로드 실패:', e)
+      setSchedules([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSchedules()
+  }, [fetchSchedules])
+
+  useEffect(() => {
+    if (!isDragging) return
+    const onGlobalMouseUp = () => {
+      if (dragStart && dragEnd) {
+        const start = dragStart <= dragEnd ? dragStart : dragEnd
+        const end = dragStart <= dragEnd ? dragEnd : dragStart
+        setPopupEditingSchedule(null)
+        setPopupRange({ start, end })
+        setPopupOpen(true)
+      }
+      setDragStart(null)
+      setDragEnd(null)
+    }
+    window.addEventListener('mouseup', onGlobalMouseUp)
+    return () => window.removeEventListener('mouseup', onGlobalMouseUp)
+  }, [isDragging, dragStart, dragEnd])
 
   const generateCalendar = () => {
     const year = currentDate.getFullYear()
@@ -161,6 +210,7 @@ export default function CalendarPage() {
           day: number
           dateStr: string
           schedules: Schedule[]
+          isNextMonth?: boolean
         }
     > = []
 
@@ -174,6 +224,22 @@ export default function CalendarPage() {
         (schedule) => schedule.startDate <= dateStr && schedule.endDate >= dateStr,
       )
       days.push({ day, dateStr, schedules: daySchedules })
+    }
+
+    // 빈 칸을 다음달 시작일로 채움
+    const totalSoFar = startingDayOfWeek + daysInMonth
+    const remainder = totalSoFar % 7
+    const cellsToFill = remainder === 0 ? 0 : 7 - remainder
+
+    const nextMonth = month === 11 ? 0 : month + 1
+    const nextYear = month === 11 ? year + 1 : year
+
+    for (let day = 1; day <= cellsToFill; day += 1) {
+      const dateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      const daySchedules = schedules.filter(
+        (schedule) => schedule.startDate <= dateStr && schedule.endDate >= dateStr,
+      )
+      days.push({ day, dateStr, schedules: daySchedules, isNextMonth: true })
     }
 
     return days
@@ -229,6 +295,7 @@ export default function CalendarPage() {
                 textAlign: 'center',
                 fontWeight: 600,
                 borderRight: '1px solid #e5e7eb',
+                borderBottom: '1px solid #e5e7eb',
               }}
             >
               {day}
@@ -240,18 +307,40 @@ export default function CalendarPage() {
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(7, 1fr)',
+            gridAutoRows: 'minmax(110px, auto)',
+            userSelect: isDragging ? 'none' : 'auto',
+            borderTop: '1px solid #e5e7eb',
           }}
         >
-          {calendarDays.map((dayData, index) => (
+          {calendarDays.map((dayData, index) => {
+            const isSelected =
+              dayData &&
+              selectedStart &&
+              selectedEnd &&
+              isDateInRange(dayData.dateStr, selectedStart, selectedEnd)
+            const lastRowStartIndex = (Math.ceil(calendarDays.length / 7) - 1) * 7
+            const showBottomBorder = index < lastRowStartIndex
+            return (
             <div
               key={index}
               style={{
                 minHeight: 110,
                 padding: '0.5rem',
                 borderRight: index % 7 !== 6 ? '1px solid #e5e7eb' : 'none',
-                borderBottom: index < calendarDays.length - 7 ? '1px solid #e5e7eb' : 'none',
-                backgroundColor: dayData ? 'white' : '#f9fafb',
+                borderBottom: showBottomBorder ? '1px solid #e5e7eb' : 'none',
+                backgroundColor: isSelected
+                  ? 'rgba(59, 130, 246, 0.2)'
+                  : dayData
+                    ? dayData.isNextMonth
+                      ? '#f3f4f6'
+                      : 'white'
+                    : '#f9fafb',
+                cursor: dayData ? (isDragging ? 'crosshair' : 'pointer') : 'default',
+                transition: 'background-color 0.15s ease',
+                overflow: 'hidden',
               }}
+              onMouseDown={dayData ? () => handleCellMouseDown(dayData.dateStr) : undefined}
+              onMouseEnter={dayData ? () => handleCellMouseEnter(dayData.dateStr) : undefined}
             >
               {dayData && (
                 <>
@@ -259,9 +348,10 @@ export default function CalendarPage() {
                     style={{
                       fontWeight: 500,
                       marginBottom: '0.35rem',
-                      color:
-                        new Date(dayData.dateStr).toDateString() ===
-                        new Date().toDateString()
+                      color: dayData.isNextMonth
+                        ? '#9ca3af'
+                        : new Date(dayData.dateStr).toDateString() ===
+                            new Date().toDateString()
                           ? '#3b82f6'
                           : '#374151',
                     }}
@@ -273,6 +363,7 @@ export default function CalendarPage() {
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '0.25rem',
+                      minHeight: 0,
                     }}
                   >
                     {dayData.schedules.slice(0, 3).map((schedule) => {
@@ -280,6 +371,10 @@ export default function CalendarPage() {
                       return (
                         <div
                           key={schedule.id}
+                          role="button"
+                          tabIndex={0}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => handleScheduleClick(schedule, e)}
                           style={{
                             fontSize: '0.72rem',
                             padding: '0.25rem 0.35rem',
@@ -289,6 +384,7 @@ export default function CalendarPage() {
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap',
+                            cursor: 'pointer',
                           }}
                         >
                           {schedule.title}
@@ -310,7 +406,8 @@ export default function CalendarPage() {
                 </>
               )}
             </div>
-          ))}
+          )
+        })}
         </div>
       </div>
     )
@@ -370,6 +467,10 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={schedule.id}
+                      role="button"
+                      tabIndex={0}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => handleScheduleClick(schedule, e)}
                       style={{
                         fontSize: '0.85rem',
                         padding: '0.5rem',
@@ -377,6 +478,7 @@ export default function CalendarPage() {
                         color: categoryColor.text,
                         borderRadius: '0.25rem',
                         border: `2px solid ${getPriorityColor(schedule.priority)}`,
+                        cursor: 'pointer',
                       }}
                     >
                       <div style={{ fontWeight: 500 }}>
@@ -418,12 +520,16 @@ export default function CalendarPage() {
           return (
             <div
               key={schedule.id}
+              role="button"
+              tabIndex={0}
+              onClick={(e) => handleScheduleClick(schedule, e)}
               style={{
                 padding: '1rem',
                 backgroundColor: 'white',
                 border: '1px solid #e5e7eb',
                 borderRadius: '0.5rem',
                 borderLeft: `4px solid ${getPriorityColor(schedule.priority)}`,
+                cursor: 'pointer',
               }}
             >
               <div
@@ -644,6 +750,150 @@ export default function CalendarPage() {
             {viewMode === 'list' && renderListView()}
           </>
         )}
+
+        <Dialog
+          open={popupOpen}
+          onClose={() => {
+            setPopupOpen(false)
+            setPopupRange(null)
+            setPopupEditingSchedule(null)
+          }}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{ sx: { borderRadius: 2 } }}
+        >
+          <DialogTitle sx={{ pb: 0 }}>
+            {popupEditingSchedule ? '일정 수정' : '새 일정 등록'}
+          </DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            {(popupRange || popupEditingSchedule) && (
+              <>
+                <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <TextField
+                    label="시작일"
+                    type="date"
+                    value={popupStartDate}
+                    onChange={(e) => setPopupStartDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ flex: 1, minWidth: 140 }}
+                  />
+                  <TextField
+                    label="종료일"
+                    type="date"
+                    value={popupEndDate}
+                    onChange={(e) => setPopupEndDate(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ flex: 1, minWidth: 140 }}
+                  />
+                </Box>
+                <TextField
+                  label="제목"
+                  fullWidth
+                  value={popupTitle}
+                  onChange={(e) => setPopupTitle(e.target.value)}
+                  sx={{ mb: 2 }}
+                  placeholder="일정 제목을 입력하세요"
+                />
+                <TextField
+                  label="내용"
+                  fullWidth
+                  multiline
+                  rows={4}
+                  value={popupContent}
+                  onChange={(e) => setPopupContent(e.target.value)}
+                  placeholder="일정 내용을 입력하세요"
+                  sx={{ mb: 2 }}
+                />
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                  <Button onClick={() => setPopupOpen(false)}>취소</Button>
+                  <Button
+                    variant="contained"
+                    onClick={async () => {
+                      if (!popupTitle.trim() || !popupStartDate || !popupEndDate) return
+                      const start = popupStartDate <= popupEndDate ? popupStartDate : popupEndDate
+                      const end = popupStartDate <= popupEndDate ? popupEndDate : popupStartDate
+                      const form = {
+                        ap_subject: popupTitle.trim(),
+                        ap_content: popupContent.trim(),
+                        app_id: CALENDAR_APP_ID,
+                        start_date: start,
+                        end_date: end,
+                        start_time: '09:00',
+                        end_time: '18:00',
+                        extra_1: popupEditingSchedule?.category ?? 'task',
+                      } as ApiAppPayload
+                      const strKeys: (keyof ApiAppPayload)[] = [
+                        'cate1', 'cate2', 'ap_subject', 'ap_content', 'recv_mail', 'link1', 'link2',
+                        'user_passwd', 'user_nm', 'user_email', 'user_home', 'last_login', 'ip',
+                        'facebook_user', 'twitter_user', 'start_date', 'start_time', 'end_date', 'end_time',
+                        'regist_dt', 'update_dt', 'extra_1', 'extra_2', 'extra_3', 'extra_4', 'extra_5',
+                        'extra_6', 'extra_7', 'extra_8', 'extra_9', 'extra_10',
+                      ]
+                      const intKeys: (keyof ApiAppPayload)[] = [
+                        'data_id', 'app_id', 'gr_num', 'reply_cd', 'parent_id', 'is_commt', 'co_num', 'co_reply',
+                        'wr_type', 'is_secret', 'link1_hit', 'link2_hit', 'hit', 'good', 'nogood', 'user_no', 'file_cnt',
+                      ]
+                      const payload = {} as ApiAppPayload
+                      for (const k of strKeys) {
+                        const v = form[k]
+                        ;(payload as Record<string, unknown>)[k] = v != null && v !== '' ? String(v) : ''
+                      }
+                      for (const k of intKeys) {
+                        const v = form[k]
+                        if (v != null && v !== '') {
+                          const n = Number(v)
+                          ;(payload as Record<string, unknown>)[k] = Number.isNaN(n) ? 0 : n
+                        } else {
+                          ;(payload as Record<string, unknown>)[k] = 0
+                        }
+                      }
+                      ;(payload as Record<string, unknown>).start_date = start
+                      ;(payload as Record<string, unknown>).end_date = end
+                      ;(payload as Record<string, unknown>).start_time = '09:00'
+                      ;(payload as Record<string, unknown>).end_time = '18:00'
+                      try {
+                        if (popupEditingSchedule) {
+                          await updateAppDataApi(popupEditingSchedule.id, payload)
+                          const updated = appDataToSchedule({
+                            ...payload,
+                            data_id: popupEditingSchedule.id,
+                            start_date: start,
+                            end_date: end,
+                            start_time: '09:00',
+                            end_time: '18:00',
+                          })
+                          setSchedules((prev) =>
+                            prev.map((s) => (s.id === popupEditingSchedule.id ? updated : s)),
+                          )
+                        } else {
+                          const created = await createAppDataApi(payload)
+                          const newSchedule = appDataToSchedule({
+                            ...created,
+                            start_date: start,
+                            end_date: end,
+                            start_time: '09:00',
+                            end_time: '18:00',
+                          })
+                          setSchedules((prev) => [...prev, newSchedule])
+                        }
+                        setPopupOpen(false)
+                        setPopupRange(null)
+                        setPopupEditingSchedule(null)
+                        setPopupTitle('')
+                        setPopupContent('')
+                      } catch (e) {
+                        console.error('일정 저장 실패:', e)
+                        alert(e instanceof Error ? e.message : '일정 저장에 실패했습니다.')
+                      }
+                    }}
+                  >
+                    저장
+                  </Button>
+                </Box>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </Paper>
     </Box>
   )

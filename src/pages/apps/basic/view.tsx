@@ -7,9 +7,12 @@ import {
   Button,
   Stack,
   Divider,
+  Dialog,
+  IconButton,
 } from '@mui/material'
 import TopBar from '../../../components/TopBar'
 import { fetchAppDataByIdApi, type ApiAppData } from '../../../apis/appApi'
+import CloseIcon from '@mui/icons-material/Close'
 
 /** ap_content HTML 내 이미지 src에 도메인 추가 */
 function processContentHtml(html: string): string {
@@ -44,6 +47,7 @@ export default function AppDataViewPage() {
 
   const [data, setData] = useState<ApiAppData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [previewImage, setPreviewImage] = useState<{ src: string; alt?: string }>({ src: '' })
 
   useEffect(() => {
     if (!id || isNaN(dataId)) {
@@ -92,6 +96,13 @@ export default function AppDataViewPage() {
     )
   }
 
+  const handleContentImageClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null
+    const imgEl = target?.closest('img') as HTMLImageElement | null
+    if (!imgEl?.src) return
+    setPreviewImage({ src: imgEl.src, alt: imgEl.alt })
+  }
+
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
       <TopBar />
@@ -121,6 +132,7 @@ export default function AppDataViewPage() {
             <Box
               className="content-html"
               component="div"
+              onClick={handleContentImageClick}
               dangerouslySetInnerHTML={{ __html: processContentHtml(data.ap_content ?? '') }}
               sx={{
                 overflow: 'hidden',
@@ -129,6 +141,7 @@ export default function AppDataViewPage() {
                   maxWidth: '100%',
                   height: 'auto',
                   objectFit: 'contain',
+                  cursor: 'zoom-in',
                 },
                 '& figure': {
                   margin: '0.5em 0',
@@ -194,6 +207,40 @@ export default function AppDataViewPage() {
           
         </Stack>
       </Paper>
+
+      <Dialog
+        open={Boolean(previewImage.src)}
+        onClose={() => setPreviewImage({ src: '' })}
+        maxWidth={false}
+      >
+        <Box sx={{ position: 'relative', bgcolor: 'background.default', p: 1 }}>
+          <IconButton
+            onClick={() => setPreviewImage({ src: '' })}
+            sx={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              bgcolor: 'rgba(0,0,0,0.5)',
+              color: '#fff',
+              '&:hover': { bgcolor: 'rgba(0,0,0,0.65)' },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+          <Box
+            component="img"
+            src={previewImage.src}
+            alt={previewImage.alt ?? '이미지 미리보기'}
+            sx={{
+              display: 'block',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              width: 'auto',
+              height: 'auto',
+            }}
+          />
+        </Box>
+      </Dialog>
     </Box>
   )
 }

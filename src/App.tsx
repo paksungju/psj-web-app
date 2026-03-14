@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ThemeProvider, createTheme, CssBaseline, AppBar, Toolbar, IconButton, useMediaQuery, Typography, useTheme } from '@mui/material'
 import { Box } from '@mui/material'
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import MenuIcon from '@mui/icons-material/Menu'
 import Sidebar from './components/Sidebar'
 import HomeScreen from './components/HomeScreen'
@@ -46,10 +46,38 @@ const theme = createTheme({
 function AppContent() {
   const [selectedMenu, setSelectedMenu] = useState('home')
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => localStorage.getItem('isLoggedIn') === 'true' || Boolean(localStorage.getItem('auth_token')),
+  )
   const appTheme = useTheme()
   const isMobile = useMediaQuery(appTheme.breakpoints.down('md'))
   const location = useLocation()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setIsAuthenticated(
+        localStorage.getItem('isLoggedIn') === 'true' || Boolean(localStorage.getItem('auth_token')),
+      )
+    }
+
+    syncAuthState()
+    window.addEventListener('storage', syncAuthState)
+    window.addEventListener('auth-change', syncAuthState as EventListener)
+    return () => {
+      window.removeEventListener('storage', syncAuthState)
+      window.removeEventListener('auth-change', syncAuthState as EventListener)
+    }
+  }, [location.pathname])
+
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    )
+  }
 
   useEffect(() => {
     if (location.pathname === '/search') {
@@ -184,7 +212,8 @@ function AppContent() {
             }}
           >
             <Routes>
-              <Route path="/login" element={<LoginPage />} />
+              <Route path="/login" element={<Navigate to="/" replace />} />
+              <Route path="/" element={<HomeScreen selectedMenu={selectedMenu} />} />
               <Route path="/search" element={<SearchPage />} />
               <Route path="/chat" element={<ChatPage />} />
               <Route path="/gallery" element={<GalleryPage />} />
@@ -211,7 +240,7 @@ function AppContent() {
               <Route path="/mails/:dataId" element={<MailViewPage />} />
               <Route path="/server" element={<ServerStatusPage />} />
 
-              <Route path="*" element={<HomeScreen selectedMenu={selectedMenu} />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Box>
         </Box>

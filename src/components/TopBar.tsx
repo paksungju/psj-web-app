@@ -39,6 +39,7 @@ export default function TopBar() {
     // 간단한 로그아웃 처리: 토큰/플래그 제거 후 로그인 페이지로 이동
     localStorage.removeItem('auth_token')
     localStorage.removeItem('isLoggedIn')
+    window.dispatchEvent(new Event('auth-change'))
     handleMenuClose()
     navigate('/login', { replace: true })
   }

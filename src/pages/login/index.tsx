@@ -24,16 +24,29 @@ export default function LoginPage() {
 
     try {
       setLoading(true)
+      const form = new URLSearchParams()
+      form.set('username', loginId)
+      form.set('password', password)
+
       const res = await fetch('http://impsj.net/api/v1/users/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({ login_id: loginId, password }),
+        body: form.toString(),
       })
 
       if (!res.ok) {
-        window.alert('로그인에 실패했습니다.')
+        let message = '로그인에 실패했습니다.'
+        try {
+          const errorData = await res.json()
+          if (errorData?.detail) {
+            message = String(errorData.detail)
+          }
+        } catch {
+          // ignore parse error
+        }
+        window.alert(message)
         return
       }
 
@@ -44,6 +57,7 @@ export default function LoginPage() {
         localStorage.setItem('auth_token', data.access_token)
       }
       localStorage.setItem('isLoggedIn', 'true')
+      window.dispatchEvent(new Event('auth-change'))
 
       navigate('/', { replace: true })
     } catch (error) {

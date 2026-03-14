@@ -343,21 +343,19 @@ export default function ChatPage() {
   return (
     <Box
       sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        overflow: 'hidden',
+        flexGrow: 1,
+        overflow: 'auto',
+        p: 3,
       }}
     >
       <TopBar />
       <Paper
         elevation={0}
         sx={{
-          flex: 1,
-          minHeight: 0,
+          minHeight: '100%',
           p: 2,
           px: 3,
-          borderRadius: 0,
+          borderRadius: 3,
           backgroundColor: 'background.paper',
           display: 'flex',
           flexDirection: 'column',
@@ -371,8 +369,8 @@ export default function ChatPage() {
         <Paper
           variant="outlined"
           sx={{
-            flex: 1,
-            minHeight: 0,
+            height: 'calc(100vh - 240px)',
+            minHeight: 420,
             borderRadius: 2,
             display: 'flex',
             flexDirection: 'column',
