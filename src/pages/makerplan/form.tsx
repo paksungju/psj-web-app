@@ -32,11 +32,11 @@ import {
   type ApiAppPayload,
 } from '../../apis/appApi'
 import {
-  uploadFileApi,
-  fetchFilesByDataApi,
-  deleteFilesApi,
-  type ApiFile,
-} from '../../apis/fileApi'
+  uploadImageApi,
+  fetchImagesByDataApi,
+  deleteImagesApi,
+  type ApiImage,
+} from '../../apis/imageApi'
 
 const numFields: (keyof ApiAppPayload)[] = [
   'data_id', 'app_id', 'gr_num', 'reply_cd', 'parent_id', 'is_commt', 'co_num', 'co_reply',
@@ -105,6 +105,16 @@ const STEP_ITEMS = [
 
 const ITEMS_PER_ROW_NARROW = 4
 
+function normalizeText(value: unknown): string {
+  return String(value ?? '').trim()
+}
+
+function isBodyEntry(value: { cate1?: unknown; parent_id?: unknown }): boolean {
+  const stepName = normalizeText(value.cate1)
+  const parentId = Number(value.parent_id ?? 0)
+  return stepName === '' && parentId === 0
+}
+
 type AttachedFile =
   | { type: 'local'; id: string; file: File; objectUrl: string }
   | { type: 'uploaded'; fileId: number; fileUrl: string; fileName: string; filesize: number; created_at: string }
@@ -140,13 +150,18 @@ export default function MakerPlanFormPage() {
   const stepParam = searchParams.get('step')
   const parsed = stepParam != null ? parseInt(stepParam, 10) : NaN
   const stepIndex = Number.isFinite(parsed) ? Math.min(Math.max(parsed - 1, 0), STEP_ITEMS.length - 1) : 0
+  const returnTo = typeof location.state === 'object' && location.state != null && 'returnTo' in location.state
+    ? String((location.state as { returnTo?: string }).returnTo ?? '')
+    : ''
 
   const [form, setForm] = useState<ApiAppPayload>({ ...emptyForm })
   const [loading, setLoading] = useState(!isCreate)
   const [saving, setSaving] = useState(false)
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null)
   const [selectedStepDataId, setSelectedStepDataId] = useState<number | null>(null)
-  const [stepContents, setStepContents] = useState<Array<{ stepLabel: string; data_id: number; ap_content: string }>>([])
+  const [stepContents, setStepContents] = useState<Array<{ stepLabel: string; data_id: number; ap_subject: string; ap_content: string; parent_id: number }>>([])
+  const [rootDataId, setRootDataId] = useState<number | null>(null)
+  const [rootSubject, setRootSubject] = useState('')
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const [selectedFileId, setSelectedFileId] = useState<string | number | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -160,11 +175,14 @@ export default function MakerPlanFormPage() {
     if (isCreate) {
       if (isReply) {
         const step = STEP_ITEMS[stepIndex]
-        setForm({ ...emptyForm, ap_subject: step?.label ?? '' })
+        setForm({ ...emptyForm, cate1: step?.label ?? '' })
         setSelectedStepIndex(stepIndex)
       } else {
         setForm({ ...emptyForm })
+        setSelectedStepIndex(null)
       }
+      setRootDataId(null)
+      setRootSubject('')
       setLoading(false)
       return
     }
@@ -180,37 +198,39 @@ export default function MakerPlanFormPage() {
               parent_id: dataId,
               gr_num: parent.gr_num ?? 0,
               app_id: parent.app_id ?? 4,
-              ap_subject: step?.label ?? '',
+              cate1: step?.label ?? '',
             })
             setSelectedStepIndex(stepIndex)
+            setRootDataId(dataId)
+            setRootSubject(parent.ap_subject?.trim() ?? '')
             const grNum = parent.gr_num ?? 0
             const listRes = await fetchAppDataListApi({ app_id: 4, gr_num: grNum, skip: 0, limit: 500 })
             if (!cancelled && listRes) {
-              const rootRow = listRes.find((r) => {
-                const rc = r.reply_cd
-                return rc == null || String(rc).trim() === '' || String(rc).trim() === '0'
-              })
+              const rootRow = listRes.find((r) => isBodyEntry(r))
               const rootId = rootRow?.data_id ?? dataId
-              const items: Array<{ stepLabel: string; data_id: number; ap_content: string }> = []
+              const items: Array<{ stepLabel: string; data_id: number; ap_subject: string; ap_content: string; parent_id: number }> = []
               if (rootRow?.data_id) {
+                setRootSubject(rootRow.ap_subject?.trim() ?? parent.ap_subject?.trim() ?? '')
                 items.push({
-                  stepLabel: rootRow.ap_subject?.trim() || '원글',
+                  stepLabel: '본문',
                   data_id: rootRow.data_id,
+                  ap_subject: rootRow.ap_subject?.trim() ?? '',
                   ap_content: rootRow.ap_content?.trim() ?? '',
+                  parent_id: rootRow.parent_id ?? 0,
                 })
               }
               for (let i = 0; i < STEP_ITEMS.length; i++) {
                 const row = listRes.find((r) => {
-                  const rc = r.reply_cd
-                  const n = typeof rc === 'number' ? rc : parseInt(String(rc), 10)
-                  return !Number.isNaN(n) && n === i + 1 && r.parent_id === rootId
+                  return normalizeText(r.cate1) === STEP_ITEMS[i]?.label && (r.parent_id ?? 0) === rootId
                 })
                 if (row && row.data_id != null) {
                   const stepItem = STEP_ITEMS[i] ?? STEP_ITEMS[0]
                   items.push({
                     stepLabel: stepItem?.label ?? '단계',
                     data_id: row.data_id,
+                    ap_subject: row.ap_subject?.trim() ?? '',
                     ap_content: row.ap_content?.trim() ?? '',
+                    parent_id: row.parent_id ?? 0,
                   })
                 }
               }
@@ -250,49 +270,40 @@ export default function MakerPlanFormPage() {
           limit: 500,
         })
         if (cancelled) return
-        const stepNumbers = [1, 2, 3, 4, 5, 6, 7]
-        let maxStepNum = 0
-        for (const row of listRes ?? []) {
-          const rc = row.reply_cd
-          if (rc == null) continue
-          const n = typeof rc === 'number' ? rc : parseInt(String(rc), 10)
-          if (!Number.isNaN(n) && stepNumbers.includes(n) && n > maxStepNum) {
-            maxStepNum = n
-          }
-        }
-        const loadStepIndex = maxStepNum > 0 ? maxStepNum - 1 : STEP_ITEMS.findIndex((s) => (data.ap_subject ?? '').trim() === s.label)
+        const loadStepIndex = STEP_ITEMS.findIndex((s) => normalizeText(data.cate1) === s.label)
         if (!cancelled) {
           setSelectedStepIndex(loadStepIndex >= 0 ? loadStepIndex : null)
         }
-        const rootRow = (listRes ?? []).find((r) => {
-          const rc = r.reply_cd
-          return rc == null || String(rc).trim() === '' || String(rc).trim() === '0'
-        })
+        const rootRow = (listRes ?? []).find((r) => isBodyEntry(r))
         const rootId = rootRow?.data_id ?? data.data_id ?? 0
-        const items: Array<{ stepLabel: string; data_id: number; ap_content: string }> = []
+        setRootSubject(rootRow?.ap_subject?.trim() ?? (isBodyEntry(data) ? data.ap_subject?.trim() ?? '' : ''))
+        const items: Array<{ stepLabel: string; data_id: number; ap_subject: string; ap_content: string; parent_id: number }> = []
         if (rootRow?.data_id) {
           items.push({
-            stepLabel: rootRow.ap_subject?.trim() || '원글',
+            stepLabel: '본문',
             data_id: rootRow.data_id,
+            ap_subject: rootRow.ap_subject?.trim() ?? '',
             ap_content: rootRow.ap_content?.trim() ?? '',
+            parent_id: rootRow.parent_id ?? 0,
           })
         }
         for (let i = 0; i < STEP_ITEMS.length; i++) {
           const row = (listRes ?? []).find((r) => {
-            const rc = r.reply_cd
-            const n = typeof rc === 'number' ? rc : parseInt(String(rc), 10)
-            return !Number.isNaN(n) && n === i + 1 && r.parent_id === rootId
+            return normalizeText(r.cate1) === STEP_ITEMS[i]?.label && (r.parent_id ?? 0) === rootId
           })
           if (row && row.data_id != null) {
             const stepItem = STEP_ITEMS[i] ?? STEP_ITEMS[0]
             items.push({
               stepLabel: stepItem?.label ?? '단계',
               data_id: row.data_id,
+              ap_subject: row.ap_subject?.trim() ?? '',
               ap_content: row.ap_content?.trim() ?? '',
+              parent_id: row.parent_id ?? 0,
             })
           }
         }
         setStepContents(items)
+        setRootDataId(isBodyEntry(data) ? (data.data_id ?? null) : rootId)
         setSelectedStepDataId(data.data_id ?? null)
         setForm({
           data_id: data.data_id,
@@ -364,9 +375,9 @@ export default function MakerPlanFormPage() {
     let cancelled = false
     const loadFiles = async () => {
       try {
-        const files = await fetchFilesByDataApi({ tbCode, dataId: selectedStepDataId })
+        const files = await fetchImagesByDataApi({ tbCode, dataId: selectedStepDataId })
         if (cancelled) return
-        const items: AttachedFile[] = files.map((f: ApiFile) => ({
+        const items: AttachedFile[] = files.map((f: ApiImage) => ({
           type: 'uploaded',
           fileId: f.file_id,
           fileUrl: toAbsoluteFileUrl(f.file_url),
@@ -414,7 +425,7 @@ export default function MakerPlanFormPage() {
     try {
       for (const item of toAdd) {
         if (item.type !== 'local') continue
-        const res = await uploadFileApi({
+        const res = await uploadImageApi({
           file: item.file,
           tbCode,
           dataId: effectiveDataId,
@@ -446,7 +457,7 @@ export default function MakerPlanFormPage() {
   const handleDeleteFile = useCallback(async (item: AttachedFile) => {
     if (item.type === 'uploaded') {
       try {
-        await deleteFilesApi({ fileIds: [item.fileId] })
+        await deleteImagesApi({ fileIds: [item.fileId] })
         setAttachedFiles((prev) => prev.filter((x) => x.type !== 'uploaded' || x.fileId !== item.fileId))
         if (selectedFileId === item.fileId) setSelectedFileId(null)
       } catch (e) {
@@ -491,7 +502,9 @@ export default function MakerPlanFormPage() {
   }
 
   const handleSubmit = async () => {
-    if (form.ap_subject == null || !String(form.ap_subject).trim()) {
+    const stepName = normalizeText(form.cate1)
+    const isBodyForm = isBodyEntry(form)
+    if (!isBodyForm && !stepName) {
       alert('단계명을 입력해 주세요.')
       return
     }
@@ -523,10 +536,11 @@ export default function MakerPlanFormPage() {
           ;(payload as Record<string, unknown>)[k] = 0
         }
       }
+      const shouldCreateStep = !isBodyForm && Number(form.parent_id ?? 0) > 0 && selectedStepDataId == null
       if (selectedStepDataId != null) {
         await updateAppDataApi(selectedStepDataId, payload)
-      } else if (isCreate || (isReply && form.parent_id)) {
-        const apiParams = isReply ? { reply: 1 } : undefined
+      } else if (isCreate || shouldCreateStep || (isReply && form.parent_id)) {
+        const apiParams = Number(form.parent_id ?? 0) > 0 ? { reply: 1 } : undefined
         await createAppDataApi(payload, apiParams)
       } else {
         await updateAppDataApi(dataId, payload)
@@ -540,6 +554,10 @@ export default function MakerPlanFormPage() {
     }
   }
 
+  const handleCancel = () => {
+    navigate(returnTo || '/makerplan')
+  }
+
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
@@ -549,10 +567,12 @@ export default function MakerPlanFormPage() {
     )
   }
 
-  const matchedStepIndex = STEP_ITEMS.findIndex(
-    (s) => (form.ap_subject ?? '').trim() === s.label
-  )
+  const matchedStepIndex = STEP_ITEMS.findIndex((s) => normalizeText(form.cate1) === s.label)
   const activeStepIndex = selectedStepIndex ?? (matchedStepIndex >= 0 ? matchedStepIndex : null)
+  const isBodyForm = isBodyEntry(form)
+  const isInitialBodyCreate = isCreate && !isReply
+  const pageTitle = isCreate ? '메이커플랜 등록' : '메이커플랜 상세'
+  const pageDescription = isCreate ? '단계 정보를 등록합니다.' : '단계 정보를 조회하고 수정합니다.'
 
   const handleStepClick = (index: number) => {
     const step = STEP_ITEMS[index]
@@ -561,7 +581,12 @@ export default function MakerPlanFormPage() {
       const stepContent = stepContents.find((s) => s.stepLabel === step.label)
       const apContent = stepContent?.ap_content ?? ''
       setSelectedStepDataId(stepContent?.data_id ?? null)
-      setForm((prev) => ({ ...prev, ap_subject: step.label, ap_content: apContent }))
+      setForm((prev) => ({
+        ...prev,
+        cate1: step.label,
+        parent_id: stepContent?.parent_id ?? rootDataId ?? prev.parent_id ?? 0,
+        ap_content: apContent,
+      }))
     }
   }
   const isEndOfRow = (idx: number) =>
@@ -578,185 +603,223 @@ export default function MakerPlanFormPage() {
           p: 3,
           borderRadius: 3,
           backgroundColor: 'background.paper',
-          maxWidth: 960,
         }}
       >
         <Typography variant="h5" sx={{ mb: 1.5, fontWeight: 600 }}>
           메이커플랜
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 0 }}>
-          구상, 스케치, 디자인, 설계, 프로토타입, 본체제작, 제작후기 단계별로 진행합니다.
-        </Typography>
+        {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 0 }}>
+          {pageGuideText}
+        </Typography> */}
 
-        {/* 스텝별 진행 단계 UI */}
-        <Box sx={{ mt: 5 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: isNarrow ? 'wrap' : 'nowrap',
-              alignItems: 'center',
-              gap: isNarrow ? 2 : 0,
-            }}
-          >
-            {STEP_ITEMS.map((step, index) => {
-              const isCompleted = activeStepIndex != null && index < activeStepIndex
-              const isActive = activeStepIndex === index
-              const isLast = index === STEP_ITEMS.length - 1
-              const StepIcon = step.icon
+        {!isInitialBodyCreate && (
+          <>
+            {/* 스텝별 진행 단계 UI */}
+            <Box sx={{ mt: 5 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: isNarrow ? 'wrap' : 'nowrap',
+                  alignItems: 'center',
+                  gap: isNarrow ? 2 : 0,
+                }}
+              >
+                {STEP_ITEMS.map((step, index) => {
+                  const isCompleted = activeStepIndex != null && index < activeStepIndex
+                  const isActive = activeStepIndex === index
+                  const isLast = index === STEP_ITEMS.length - 1
+                  const StepIcon = step.icon
 
-              return (
-                <Box
-                  key={step.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    flex: isNarrow
-                      ? `0 0 calc((100% - ${(ITEMS_PER_ROW_NARROW - 1) * 16}px) / ${ITEMS_PER_ROW_NARROW})`
-                      : isLast
-                        ? '0 0 auto'
-                        : 1,
-                    minWidth: isNarrow ? 0 : 0,
-                    mb: isNarrow ? 2 : 0,
-                  }}
-                >
-                  <Box
-                    onClick={() => handleStepClick(index)}
-                    sx={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: '15%',
-                      backgroundColor: isCompleted ? '#4caf50' : isActive ? '#2196f3' : '#ccc',
-                      color: 'white',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      fontWeight: 'bold',
-                      border: '4px solid white',
-                      boxSizing: 'border-box',
-                      flexShrink: 0,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <StepIcon sx={{ fontSize: 36 }} />
-                  </Box>
-                  {showConnector(index) && (
+                  return (
                     <Box
+                      key={step.id}
                       sx={{
-                        flex: 1,
-                        height: 2,
-                        minWidth: 20,
-                        mx: 0.5,
-                        backgroundColor: isCompleted ? '#4caf50' : '#bbb',
-                      }}
-                    />
-                  )}
-                </Box>
-              )
-            })}
-          </Box>
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: isNarrow ? 'wrap' : 'nowrap',
-              alignItems: 'center',
-              mt: 1.25,
-              gap: isNarrow ? 2 : 0,
-            }}
-          >
-            {STEP_ITEMS.map((step, index) => {
-              const isActive = activeStepIndex === index
-              const isLast = index === STEP_ITEMS.length - 1
-
-              return (
-                <Box
-                  key={step.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    flex: isNarrow
-                      ? `0 0 calc((100% - ${(ITEMS_PER_ROW_NARROW - 1) * 16}px) / ${ITEMS_PER_ROW_NARROW})`
-                      : isLast
-                        ? '0 0 auto'
-                        : 1,
-                    minWidth: 0,
-                    mb: isNarrow ? 0.5 : 0,
-                  }}
-                >
-                  <Box
-                    onClick={() => handleStepClick(index)}
-                    sx={{
-                      width: 80,
-                      flexShrink: 0,
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontSize: 14,
-                        color: isActive ? '#2196f3' : '#666',
-                        fontWeight: isActive ? 'bold' : 400,
+                        display: 'flex',
+                        alignItems: 'center',
+                        flex: isNarrow
+                          ? `0 0 calc((100% - ${(ITEMS_PER_ROW_NARROW - 1) * 16}px) / ${ITEMS_PER_ROW_NARROW})`
+                          : isLast
+                            ? '0 0 auto'
+                            : 1,
+                        minWidth: isNarrow ? 0 : 0,
+                        mb: isNarrow ? 2 : 0,
                       }}
                     >
-                      {step.label}
-                    </Typography>
-                  </Box>
-                  {showConnector(index) && <Box sx={{ flex: 1, minWidth: 20, mx: 0.5 }} />}
-                </Box>
-              )
-            })}
-          </Box>
-        </Box>
+                      <Box
+                        onClick={() => handleStepClick(index)}
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: '15%',
+                          backgroundColor: isCompleted ? '#4caf50' : isActive ? '#2196f3' : '#ccc',
+                          color: 'white',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          fontWeight: 'bold',
+                          border: '4px solid white',
+                          boxSizing: 'border-box',
+                          flexShrink: 0,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <StepIcon sx={{ fontSize: 36 }} />
+                      </Box>
+                      {showConnector(index) && (
+                        <Box
+                          sx={{
+                            flex: 1,
+                            height: 2,
+                            minWidth: 20,
+                            mx: 0.5,
+                            backgroundColor: isCompleted ? '#4caf50' : '#bbb',
+                          }}
+                        />
+                      )}
+                    </Box>
+                  )
+                })}
+              </Box>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexWrap: isNarrow ? 'wrap' : 'nowrap',
+                  alignItems: 'center',
+                  mt: 1.25,
+                  gap: isNarrow ? 2 : 0,
+                }}
+              >
+                {STEP_ITEMS.map((step, index) => {
+                  const isActive = activeStepIndex === index
+                  const isLast = index === STEP_ITEMS.length - 1
 
-        <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3, mb: 2 }}>
-          {form.ap_subject ? `${form.ap_subject} - ${form.ap_content || '(설명 없음)'}` : '현재 편집 중인 단계 정보입니다.'}
-        </Typography>
+                  return (
+                    <Box
+                      key={step.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        flex: isNarrow
+                          ? `0 0 calc((100% - ${(ITEMS_PER_ROW_NARROW - 1) * 16}px) / ${ITEMS_PER_ROW_NARROW})`
+                          : isLast
+                            ? '0 0 auto'
+                            : 1,
+                        minWidth: 0,
+                        mb: isNarrow ? 0.5 : 0,
+                      }}
+                    >
+                      <Box
+                        onClick={() => handleStepClick(index)}
+                        sx={{
+                          width: 80,
+                          flexShrink: 0,
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontSize: 14,
+                            color: isActive ? '#2196f3' : '#666',
+                            fontWeight: isActive ? 'bold' : 400,
+                          }}
+                        >
+                          {step.label}
+                        </Typography>
+                      </Box>
+                      {showConnector(index) && <Box sx={{ flex: 1, minWidth: 20, mx: 0.5 }} />}
+                    </Box>
+                  )
+                })}
+              </Box>
+            </Box>
+
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 3, mb: 2 }}>
+              {isBodyForm
+                ? `본문 제목 - ${form.ap_subject || '(제목 없음)'}`
+                : `본문 제목 - ${rootSubject || '(제목 없음)'}`}
+            </Typography>
+          </>
+        )}
 
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-          메이커플랜 상세
+          {pageTitle}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          단계 정보를 조회하고 수정합니다.
+          {pageDescription}
         </Typography>
 
         <Stack spacing={2.5}>
           {stepContents.length > 0 && (
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                단계별 ap_content
+                단계별 등록 현황
               </Typography>
               {stepContents.map((item) => (
                 <Box key={item.data_id} sx={{ mb: 1.5 }}>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
                     {item.stepLabel} (data_id: {item.data_id})
                   </Typography>
-                  <Typography
-                    variant="body2"
-                    component="pre"
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 1,
-                      backgroundColor: 'grey.50',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontSize: 13,
-                    }}
-                  >
-                    {item.ap_content || '(비어 있음)'}
-                  </Typography>
+                  {item.stepLabel === '본문' ? (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 1,
+                        backgroundColor: 'grey.50',
+                        wordBreak: 'break-word',
+                        fontSize: 13,
+                      }}
+                    >
+                      {item.ap_subject || '(제목 없음)'}
+                    </Typography>
+                  ) : (
+                    <></>
+                    // <Typography
+                    //   variant="body2"
+                    //   component="pre"
+                    //   sx={{
+                    //     p: 1.5,
+                    //     borderRadius: 1,
+                    //     backgroundColor: 'grey.50',
+                    //     whiteSpace: 'pre-wrap',
+                    //     wordBreak: 'break-word',
+                    //     fontSize: 13,
+                    //   }}
+                    // >
+                    //   {item.ap_content || '(비어 있음)'}
+                    // </Typography>
+                  )}
                 </Box>
               ))}
             </Box>
           )}
+          {!isInitialBodyCreate && (
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                단계명 {!isBodyForm && <span style={{ color: 'red' }}>*</span>}
+              </Typography>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder={isBodyForm ? '최초 본문은 단계명이 없습니다.' : '단계명 (cate1)'}
+                value={form.cate1 ?? ''}
+                onChange={handleChange('cate1')}
+                disabled={isBodyForm}
+                InputProps={{ readOnly: true, sx: { backgroundColor: 'grey.50' } }}
+              />
+            </Box>
+          )}
+
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-              단계명 <span style={{ color: 'red' }}>*</span>
+              제목
             </Typography>
             <TextField
               fullWidth
               size="small"
-              placeholder="단계명 (ap_subject)"
+              placeholder="제목 (ap_subject)"
               value={form.ap_subject ?? ''}
               onChange={handleChange('ap_subject')}
               InputProps={{ sx: { backgroundColor: 'grey.50' } }}
@@ -810,7 +873,7 @@ export default function MakerPlanFormPage() {
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              첨부 이미지
+              에디터 이미지
             </Typography>
             <input
               ref={fileInputRef}
@@ -830,7 +893,7 @@ export default function MakerPlanFormPage() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading || !effectiveDataId}
               >
-                +파일등록
+                +이미지등록
               </Button>
               <Button
                 size="small"
@@ -883,7 +946,7 @@ export default function MakerPlanFormPage() {
               >
                 {attachedFiles.length === 0 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                    첨부된 파일이 없습니다.
+                    등록된 이미지가 없습니다.
                   </Typography>
                 ) : (
                   <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
@@ -931,7 +994,7 @@ export default function MakerPlanFormPage() {
           <Button
             variant="outlined"
             color="inherit"
-            onClick={() => navigate('/makerplan')}
+            onClick={handleCancel}
             disabled={saving}
           >
             취소

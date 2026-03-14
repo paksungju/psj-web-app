@@ -78,6 +78,16 @@ const menuItems: SidebarMenuItem[] = [
       { id: 'app/configs', label: '앱설정' },
     ],
   },
+  {
+    id: 'spt',
+    label: '전략기획툴',
+    icon: <AssignmentIcon />,
+    children: [
+      { id: 'spt-home', label: 'HOME' },
+      { id: 'spt-cate', label: '분류관리' },
+      { id: 'spt-resources', label: '리소스관리' },
+    ],
+  },
   { id: 'settings', label: '설정', icon: <SettingsIcon /> },
 ]
 
@@ -87,6 +97,7 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
   const [collapsed, setCollapsed] = useState(false)
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({
     apps: true,
+    spt: true,
   })
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -96,6 +107,13 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
   }
 
   const handleMenuClick = (menuId: string) => {
+    if (menuId === 'spt-home') {
+      window.open('/spt', '_blank', 'noopener,noreferrer')
+      if (isMobile && onMobileClose) {
+        onMobileClose()
+      }
+      return
+    }
     onMenuSelect(menuId)
     if (isMobile && onMobileClose) {
       onMobileClose()

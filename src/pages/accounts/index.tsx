@@ -16,11 +16,14 @@ import {
   Button,
   Stack,
   Select,
+  Menu,
   MenuItem,
   Radio,
   RadioGroup,
   FormControlLabel,
+  IconButton,
 } from '@mui/material'
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import TopBar from '../../components/TopBar'
 import {
   createAccountApi,
@@ -43,12 +46,24 @@ interface AccountRow {
   updatedAt: string
 }
 
+function getTodayDate() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 
 export default function AccountsPage() {
+  const LOGIN_PASSWORD_SESSION_KEY = 'login_password'
   const [accounts, setAccounts] = useState<AccountRow[]>([])
   const [selectedAccount, setSelectedAccount] = useState<AccountRow | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'detail' | 'create'>('detail')
+  const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null)
+  const [menuAccount, setMenuAccount] = useState<AccountRow | null>(null)
+  const [revealedPasswordAccountId, setRevealedPasswordAccountId] = useState<number | null>(null)
+  const [passwordAuthOpen, setPasswordAuthOpen] = useState(false)
+  const [passwordAuthValue, setPasswordAuthValue] = useState('')
+  const [passwordAuthError, setPasswordAuthError] = useState('')
+  const [pendingPasswordAccount, setPendingPasswordAccount] = useState<AccountRow | null>(null)
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -136,6 +151,7 @@ export default function AccountsPage() {
     }
 
     try {
+      const nextUpdatedAt = getTodayDate()
       const upsertPayload = {
         ac_subject: selectedAccount.acSubject,
         ac_login_id: selectedAccount.acLoginId ?? '',
@@ -154,10 +170,16 @@ export default function AccountsPage() {
         await updateAccountApi(selectedAccount.acId, { ac_id: selectedAccount.acId, ...upsertPayload })
       }
 
+      const nextAccount = {
+        ...selectedAccount,
+        updatedAt: nextUpdatedAt,
+      }
+
       // 목록 상태도 함께 갱신
       setAccounts((prev) =>
-        prev.map((item) => (item.acId === selectedAccount.acId ? { ...item, ...selectedAccount } : item)),
+        prev.map((item) => (item.acId === selectedAccount.acId ? { ...item, ...nextAccount } : item)),
       )
+      setSelectedAccount(nextAccount)
 
       setDetailOpen(false)
     } catch (error) {
@@ -182,6 +204,78 @@ export default function AccountsPage() {
       updatedAt: '',
     })
     setDetailOpen(true)
+  }
+
+  const handleOpenRowMenu = (event: React.MouseEvent<HTMLElement>, row: AccountRow) => {
+    setMenuAnchorEl(event.currentTarget)
+    setMenuAccount(row)
+  }
+
+  const handleCloseRowMenu = () => {
+    setMenuAnchorEl(null)
+    setMenuAccount(null)
+  }
+
+  const handleMenuDetail = async () => {
+    if (!menuAccount) return
+    const target = menuAccount
+    handleCloseRowMenu()
+    await handleOpenDetail(target)
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!menuAccount) return
+    const target = menuAccount
+    const confirmed = window.confirm(`"${target.acSubject}" 계정을 삭제하시겠습니까?`)
+    handleCloseRowMenu()
+    if (!confirmed) return
+
+    try {
+      await updateAccountApi(target.acId, {
+        ac_id: target.acId,
+        del_flag: 1,
+      })
+      setAccounts((prev) => prev.filter((item) => item.acId !== target.acId))
+      if (selectedAccount?.acId === target.acId) {
+        setDetailOpen(false)
+        setSelectedAccount(null)
+      }
+    } catch (error) {
+      console.error('계정 삭제 중 오류가 발생했습니다:', error)
+      alert('계정 삭제에 실패했습니다.')
+    }
+  }
+
+  const handleOpenPasswordAuth = (row: AccountRow) => {
+    if (revealedPasswordAccountId === row.acId) {
+      setRevealedPasswordAccountId(null)
+      return
+    }
+    setPendingPasswordAccount(row)
+    setPasswordAuthValue('')
+    setPasswordAuthError('')
+    setPasswordAuthOpen(true)
+  }
+
+  const handleClosePasswordAuth = () => {
+    setPasswordAuthOpen(false)
+    setPasswordAuthValue('')
+    setPasswordAuthError('')
+    setPendingPasswordAccount(null)
+  }
+
+  const handleConfirmPasswordAuth = () => {
+    const loginPassword = sessionStorage.getItem(LOGIN_PASSWORD_SESSION_KEY)
+    if (!loginPassword) {
+      setPasswordAuthError('로그인 인증정보가 없습니다. 다시 로그인해 주세요.')
+      return
+    }
+    if (passwordAuthValue !== loginPassword) {
+      setPasswordAuthError('비밀번호가 일치하지 않습니다.')
+      return
+    }
+    setRevealedPasswordAccountId(pendingPasswordAccount?.acId ?? null)
+    handleClosePasswordAuth()
   }
 
   return (
@@ -230,8 +324,9 @@ export default function AccountsPage() {
                 <TableCell align="center" sx={{ fontWeight: 600, width: 60 }}>
                   NO
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600,width: 100  }}>계정명</TableCell>
-                <TableCell sx={{ fontWeight: 600,width: 100  }}>아이디</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>계정명</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>아이디</TableCell>
+                <TableCell sx={{ fontWeight: 600, width: 120 }}>Password</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>
                   중요도
                 </TableCell>
@@ -239,10 +334,10 @@ export default function AccountsPage() {
                   사용여부
                 </TableCell>
                 <TableCell align="center" sx={{ fontWeight: 600, width: 140 }}>
-                  등록일
+                  Date
                 </TableCell>
-                <TableCell align="center" sx={{ fontWeight: 600, width: 140 }}>
-                  수정일
+                <TableCell align="center" sx={{ fontWeight: 600, width: 72 }}>
+                  메뉴
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -251,21 +346,103 @@ export default function AccountsPage() {
                 <TableRow key={row.acId} hover>
                   <TableCell align="center">{row.acId}</TableCell>
                   <TableCell
-                    onClick={() => handleOpenDetail(row)}
+                    onClick={() => handleOpenPasswordAuth(row)}
                     sx={{ cursor: 'pointer', color: 'primary.main', fontWeight: 600 }}
                   >
                     {row.acSubject}
                   </TableCell>
                   <TableCell align="center">{row.acLoginId}</TableCell>
+                  <TableCell align="center">
+                    {revealedPasswordAccountId === row.acId ? (
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-block',
+                          px: 1,
+                          py: 0.25,
+                          borderRadius: 1,
+                          bgcolor: 'common.black',
+                          color: 'common.white',
+                          userSelect: 'text',
+                          cursor: 'text',
+                          letterSpacing: 0.3,
+                        }}
+                      >
+                        {row.acLoginPw ?? ''}
+                      </Box>
+                    ) : (
+                      '****'
+                    )}
+                  </TableCell>
                   <TableCell align="center">{row.acLevel}</TableCell>
                   <TableCell align="center">{row.useFlag ? '사용' : '미사용'}</TableCell>
-                  <TableCell align="center">{row.createdAt}</TableCell>
                   <TableCell align="center">{row.updatedAt}</TableCell>
+                  <TableCell align="center">
+                    <IconButton size="small" onClick={(event) => handleOpenRowMenu(event, row)}>
+                      <MoreHorizIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </Paper>
+
+        <Menu
+          anchorEl={menuAnchorEl}
+          open={Boolean(menuAnchorEl)}
+          onClose={handleCloseRowMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <MenuItem onClick={handleMenuDetail}>상세보기</MenuItem>
+          <MenuItem onClick={handleDeleteAccount}>삭제</MenuItem>
+        </Menu>
+
+        <Dialog
+          open={passwordAuthOpen}
+          onClose={handleClosePasswordAuth}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontWeight: 600 }}>비밀번호 확인</DialogTitle>
+          <DialogContent dividers sx={{ pt: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                {pendingPasswordAccount
+                  ? `"${pendingPasswordAccount.acSubject}" 비밀번호를 확인하려면 로그인 비밀번호를 입력해 주세요.`
+                  : '로그인 비밀번호를 입력해 주세요.'}
+              </Typography>
+              <TextField
+                fullWidth
+                autoFocus
+                size="small"
+                type="password"
+                label="로그인 비밀번호"
+                value={passwordAuthValue}
+                onChange={(e) => {
+                  setPasswordAuthValue(e.target.value)
+                  if (passwordAuthError) setPasswordAuthError('')
+                }}
+                error={Boolean(passwordAuthError)}
+                helperText={passwordAuthError || ' '}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleConfirmPasswordAuth()
+                  }
+                }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={handleClosePasswordAuth} color="inherit">
+              취소
+            </Button>
+            <Button onClick={handleConfirmPasswordAuth} variant="contained">
+              확인
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* 등록 팝업: 상세 팝업(Dialog) 재사용 */}
 

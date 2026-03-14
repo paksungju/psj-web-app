@@ -11,6 +11,8 @@ import SearchIcon from '@mui/icons-material/Search'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import { useLocation, useNavigate } from 'react-router-dom'
 
+const LOGIN_PASSWORD_SESSION_KEY = 'login_password'
+
 export default function TopBar() {
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null)
   const menuOpen = Boolean(menuAnchorEl)
@@ -39,6 +41,7 @@ export default function TopBar() {
     // 간단한 로그아웃 처리: 토큰/플래그 제거 후 로그인 페이지로 이동
     localStorage.removeItem('auth_token')
     localStorage.removeItem('isLoggedIn')
+    sessionStorage.removeItem(LOGIN_PASSWORD_SESSION_KEY)
     window.dispatchEvent(new Event('auth-change'))
     handleMenuClose()
     navigate('/login', { replace: true })

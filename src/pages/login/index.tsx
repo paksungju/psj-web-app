@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Box,
   Paper,
@@ -6,14 +6,28 @@ import {
   Button,
   Typography,
   CircularProgress,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+
+const SAVED_LOGIN_ID_KEY = 'saved_login_id'
+const LOGIN_PASSWORD_SESSION_KEY = 'login_password'
 
 export default function LoginPage() {
   const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [rememberLoginId, setRememberLoginId] = useState(false)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    const savedLoginId = localStorage.getItem(SAVED_LOGIN_ID_KEY) ?? ''
+    if (savedLoginId) {
+      setLoginId(savedLoginId)
+      setRememberLoginId(true)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,6 +70,12 @@ export default function LoginPage() {
       if (data?.access_token) {
         localStorage.setItem('auth_token', data.access_token)
       }
+      sessionStorage.setItem(LOGIN_PASSWORD_SESSION_KEY, password)
+      if (rememberLoginId) {
+        localStorage.setItem(SAVED_LOGIN_ID_KEY, loginId)
+      } else {
+        localStorage.removeItem(SAVED_LOGIN_ID_KEY)
+      }
       localStorage.setItem('isLoggedIn', 'true')
       window.dispatchEvent(new Event('auth-change'))
 
@@ -97,6 +117,7 @@ export default function LoginPage() {
             value={loginId}
             onChange={(e) => setLoginId(e.target.value)}
             fullWidth
+            autoFocus
           />
           <TextField
             label="비밀번호"
@@ -105,6 +126,22 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             fullWidth
+          />
+          <FormControlLabel
+            control={(
+              <Checkbox
+                checked={rememberLoginId}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setRememberLoginId(checked)
+                  if (!checked) {
+                    localStorage.removeItem(SAVED_LOGIN_ID_KEY)
+                  }
+                }}
+                size="small"
+              />
+            )}
+            label="아이디 저장"
           />
           <Button
             type="submit"
