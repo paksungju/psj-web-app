@@ -65,7 +65,7 @@ export default function GalleryPage() {
       await deleteFilesApi({ fileIds: ids })
 
       const data = await fetchFilesByDataApi({
-        tbCode: 'gallery',
+        menuCd: 'gallery',
         dataId: 0,
       })
       setFiles(data.items)
@@ -92,7 +92,7 @@ export default function GalleryPage() {
       await deleteFilesApi({ fileIds: [menuFileId] })
 
       const data = await fetchFilesByDataApi({
-        tbCode: 'gallery',
+        menuCd: 'gallery',
         dataId: 0,
       })
       setFiles(data.items)
@@ -179,7 +179,7 @@ export default function GalleryPage() {
   const uploadSingleFile = async (file: File) => {
     await uploadFileApi({
       file,
-      tbCode: 'gallery',
+      menuCd: 'gallery',
       dataId: 0,
       fileNo: 1,
       fileType: 0,
@@ -187,7 +187,7 @@ export default function GalleryPage() {
       save_path: 'gallery',
     })
     // 업로드 후 최신 파일 목록 다시 조회
-    const data = await fetchFilesByDataApi({ tbCode: 'gallery', dataId: 0 })
+    const data = await fetchFilesByDataApi({ menuCd: 'gallery', dataId: 0 })
     setFiles(data.items)
   }
 
@@ -209,7 +209,7 @@ export default function GalleryPage() {
   useEffect(() => {
     const fetchFiles = async () => {
       try {
-        const data = await fetchFilesByDataApi({ tbCode: 'gallery', dataId: 0 })
+        const data = await fetchFilesByDataApi({ menuCd: 'gallery', dataId: 0 })
         setFiles(data.items)
       } catch (error) {
         console.error('파일 목록을 불러오는 중 오류가 발생했습니다:', error)

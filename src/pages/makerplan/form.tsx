@@ -168,7 +168,7 @@ export default function MakerPlanFormPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const editorRef = useRef<{ execute: (cmd: string, opts?: { source?: string | string[] }) => void } | null>(null)
 
-  const tbCode = 'makerplan'
+  const menuCd = 'makerplan'
   const effectiveDataId = selectedStepDataId ?? (!isCreate && !isNaN(dataId) ? dataId : 0)
 
   useEffect(() => {
@@ -375,7 +375,7 @@ export default function MakerPlanFormPage() {
     let cancelled = false
     const loadFiles = async () => {
       try {
-        const files = await fetchImagesByDataApi({ tbCode, dataId: selectedStepDataId })
+        const files = await fetchImagesByDataApi({ menuCd, dataId: selectedStepDataId })
         if (cancelled) return
         const items: AttachedFile[] = files.map((f: ApiImage) => ({
           type: 'uploaded',
@@ -427,7 +427,7 @@ export default function MakerPlanFormPage() {
         if (item.type !== 'local') continue
         const res = await uploadImageApi({
           file: item.file,
-          tbCode,
+          menuCd,
           dataId: effectiveDataId,
           save_path: 'makerplan',
         })

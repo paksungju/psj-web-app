@@ -127,8 +127,8 @@ export default function GalleryPage() {
       await deleteFilesApi({ fileIds: ids })
 
       const data = await fetchFilesByDataApi({
-        tbCode: 'file',
-        dataId: 0,
+        menuCd: 'files',
+        dataId: -999,
         skip: page * rowsPerPage,
         limit: rowsPerPage,
       })
@@ -158,8 +158,8 @@ export default function GalleryPage() {
       await deleteFilesApi({ fileIds: [menuFileId] })
 
       const data = await fetchFilesByDataApi({
-        tbCode: 'file',
-        dataId: 0,
+        menuCd: 'files',
+        dataId: -999,
         skip: page * rowsPerPage,
         limit: rowsPerPage,
       })
@@ -277,8 +277,8 @@ export default function GalleryPage() {
     await uploadFileApiWithProgress(
       {
         file,
-        tbCode: 'file',
-        dataId: 0,
+        menuCd: 'files',
+        dataId: -999,
         fileNo: 1,
         fileType: 0,
         description: file.name || '',
@@ -307,8 +307,8 @@ export default function GalleryPage() {
     const load = async () => {
       try {
         const data = await fetchFilesByDataApi({
-          tbCode: 'file',
-          dataId: 0,
+          menuCd: 'files',
+          dataId: -999,
           skip: page * rowsPerPage,
           limit: rowsPerPage,
         })
@@ -427,8 +427,8 @@ export default function GalleryPage() {
                 setSelectedFiles([])
                 setShowDropZone(false)
                 const data = await fetchFilesByDataApi({
-                  tbCode: 'file',
-                  dataId: 0,
+                  menuCd: 'files',
+                  dataId: -999,
                   skip: 0,
                   limit: rowsPerPage,
                 })
@@ -685,7 +685,6 @@ export default function GalleryPage() {
                     </Box>
                   </TableCell>
                   <TableCell
-                    align="center"
                     sx={{ cursor: 'pointer', color: 'primary.main', textDecoration: 'underline', '&:hover': { color: 'primary.dark' } }}
                     onClick={() => handleDownload(item)}
                   >

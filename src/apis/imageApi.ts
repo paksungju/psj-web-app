@@ -36,7 +36,7 @@ export interface ApiImage {
 
 export async function uploadImageApi(params: {
   file: File
-  tbCode?: string
+  menuCd?: string
   dataId?: number
   fileNo?: number
   fileType?: number
@@ -45,7 +45,7 @@ export async function uploadImageApi(params: {
 }): Promise<UploadImageResponse> {
   const {
     file,
-    tbCode = 'gallery',
+    menuCd = 'gallery',
     dataId = 0,
     fileNo = 1,
     fileType = 0,
@@ -54,7 +54,7 @@ export async function uploadImageApi(params: {
   } = params
 
   const formData = new FormData()
-  formData.append('tb_code', tbCode)
+  formData.append('tb_code', menuCd)
   formData.append('data_id', String(dataId))
   formData.append('file_no', String(fileNo))
   formData.append('file_type', String(fileType))
@@ -75,13 +75,13 @@ export async function uploadImageApi(params: {
 }
 
 export async function fetchImagesByDataApi(params: {
-  tbCode: string
+  menuCd: string
   dataId: number
 }): Promise<ApiImage[]> {
-  const { tbCode, dataId } = params
+  const { menuCd, dataId } = params
 
   const response = await fetch(
-    `http://impsj.net/api/v1/images/by-data?tb_code=${tbCode}&data_id=${dataId}`,
+    `http://impsj.net/api/v1/images/by-data?tb_code=${menuCd}&data_id=${dataId}`,
   )
   if (!response.ok) {
     throw new Error('Failed to fetch images')

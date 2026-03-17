@@ -131,9 +131,9 @@ export default function AppDataFormPage() {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
   const addingToSlotRef = useRef<number>(0)
-  const editorRef = useRef<{ execute: (cmd: string, opts?: { source?: string | string[] }) => void } | null>(null)
+  const editorRef = useRef<{ execute: (cmd: string, opts?: { source?: string | string[] }) => void; getData: () => string; setData: (data: string) => void } | null>(null)
 
-  const tbCode = 'info'
+  const menuCd = 'info'
   const effectiveDataId = isEdit ? (form.data_id ?? dataId ?? 0) : 0
   const appId = form.app_id ?? 2
 
@@ -264,7 +264,7 @@ export default function AppDataFormPage() {
     let cancelled = false
     const loadImages = async () => {
       try {
-        const images = await fetchImagesByDataApi({ tbCode: 'info', dataId })
+        const images = await fetchImagesByDataApi({ menuCd: 'info', dataId })
         if (cancelled) return
         const items: AttachedFile[] = images.map((f) => ({
           type: 'uploaded',
@@ -293,7 +293,7 @@ export default function AppDataFormPage() {
     let cancelled = false
     const loadAttachments = async () => {
       try {
-        const res = await fetchFilesByDataApi({ tbCode: 'info', dataId, limit: 200 })
+        const res = await fetchFilesByDataApi({ menuCd: 'info', dataId, limit: 200 })
         if (cancelled) return
         const bySlot: AttachedFile[][] = []
         for (const f of res.items) {
@@ -348,7 +348,7 @@ export default function AppDataFormPage() {
         if (item.type !== 'local') continue
         const res = await uploadImageApi({
           file: item.file,
-          tbCode,
+          menuCd,
           dataId: effectiveDataId,
           save_path: 'info',
         })
@@ -404,7 +404,7 @@ export default function AppDataFormPage() {
         if (item.type !== 'local') continue
         const res = await uploadFileApi({
           file: item.file,
-          tbCode,
+          menuCd,
           dataId: effectiveDataId,
           fileNo,
           save_path: 'info',
@@ -562,7 +562,7 @@ export default function AppDataFormPage() {
               try {
                 await uploadFileApi({
                   file: item.file,
-                  tbCode,
+                  menuCd,
                   dataId: savedId,
                   fileNo,
                   save_path: 'info',

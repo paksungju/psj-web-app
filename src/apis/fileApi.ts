@@ -41,7 +41,7 @@ export interface ApiFile {
 export async function uploadFileApiWithProgress(
   params: {
     file: File
-    tbCode?: string
+    menuCd?: string
     dataId?: number
     fileNo?: number
     fileType?: number
@@ -50,10 +50,10 @@ export async function uploadFileApiWithProgress(
   },
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<UploadFileResponse> {
-  const { file, tbCode = 'gallery', dataId = 0, fileNo = 1, fileType = 0, description = '', save_path = 'gallery' } = params
+  const { file, menuCd = 'gallery', dataId = 0, fileNo = 1, fileType = 0, description = '', save_path = 'gallery' } = params
 
   const formData = new FormData()
-  formData.append('tb_code', tbCode)
+  formData.append('tb_code', menuCd)
   formData.append('data_id', String(dataId))
   formData.append('file_no', String(fileNo))
   formData.append('file_type', String(fileType))
@@ -106,15 +106,15 @@ export interface FetchFilesResponse {
  * GET http://impsj.net/api/v1/files/by-data?tb_code=...&data_id=...&skip=...&limit=...
  */
 export async function fetchFilesByDataApi(params: {
-  tbCode: string
+  menuCd: string
   dataId: number
   skip?: number
   limit?: number
 }): Promise<FetchFilesResponse> {
-  const { tbCode, dataId, skip = 0, limit = 20 } = params
+  const { menuCd, dataId, skip = 0, limit = 20 } = params
 
   const search = new URLSearchParams()
-  search.set('tb_code', tbCode)
+  search.set('tb_code', menuCd)
   search.set('data_id', String(dataId))
   search.set('skip', String(skip))
   search.set('limit', String(limit))

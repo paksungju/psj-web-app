@@ -77,7 +77,7 @@ export default function AppDataViewPage() {
       try {
         const [res, fileRes] = await Promise.all([
           fetchAppDataByIdApi(dataId),
-          fetchFilesByDataApi({ tbCode: 'info', dataId }),
+          fetchFilesByDataApi({ menuCd: 'info', dataId }),
         ])
         if (!cancelled) {
           setData(res ?? null)
