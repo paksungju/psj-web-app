@@ -53,7 +53,7 @@ export async function uploadFileApiWithProgress(
   const { file, menuCd = 'gallery', dataId = 0, fileNo = 1, fileType = 0, description = '', save_path = 'gallery' } = params
 
   const formData = new FormData()
-  formData.append('tb_code', menuCd)
+  formData.append('menu_cd', menuCd)
   formData.append('data_id', String(dataId))
   formData.append('file_no', String(fileNo))
   formData.append('file_type', String(fileType))
@@ -103,7 +103,7 @@ export interface FetchFilesResponse {
 
 /**
  * 저장된 파일 목록 조회 (최신순, 페이징)
- * GET http://impsj.net/api/v1/files/by-data?tb_code=...&data_id=...&skip=...&limit=...
+ * GET http://impsj.net/api/v1/files/by-data?menu_cd=...&data_id=...&skip=...&limit=...
  */
 export async function fetchFilesByDataApi(params: {
   menuCd: string
@@ -114,7 +114,7 @@ export async function fetchFilesByDataApi(params: {
   const { menuCd, dataId, skip = 0, limit = 20 } = params
 
   const search = new URLSearchParams()
-  search.set('tb_code', menuCd)
+  search.set('menu_cd', menuCd)
   search.set('data_id', String(dataId))
   search.set('skip', String(skip))
   search.set('limit', String(limit))

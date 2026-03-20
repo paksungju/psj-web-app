@@ -26,6 +26,7 @@ import {
   uploadImageApi,
   fetchImagesByDataApi,
   deleteImagesApi,
+  type ApiImage,
 } from '../../../apis/imageApi'
 import {
   uploadFileApi,
@@ -264,9 +265,9 @@ export default function AppDataFormPage() {
     let cancelled = false
     const loadImages = async () => {
       try {
-        const images = await fetchImagesByDataApi({ menuCd: 'info', dataId })
+        const res = await fetchImagesByDataApi({ menuCd: 'info', dataId })
         if (cancelled) return
-        const items: AttachedFile[] = images.map((f) => ({
+        const items: AttachedFile[] = res.items.map((f: ApiImage) => ({
           type: 'uploaded',
           fileId: f.file_id,
           fileUrl: toAbsoluteFileUrl(f.file_url),

@@ -11,16 +11,20 @@ import {
   Menu,
   MenuItem,
   Dialog,
+  DialogTitle,
   DialogContent,
+  DialogActions,
   LinearProgress,
   Checkbox,
   CircularProgress,
+  Stack,
   Table,
   TableHead,
   TableBody,
   TableRow,
   TableCell,
   Select,
+  TextField,
 } from '@mui/material'
 import CheckIcon from '@mui/icons-material/Check'
 import MenuIcon from '@mui/icons-material/Menu'
@@ -29,12 +33,19 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew'
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import CloseIcon from '@mui/icons-material/Close'
 import TopBar from '../../components/TopBar'
-import { uploadFileApi, fetchFilesByDataApi, deleteFilesApi, ApiFile } from '../../apis/fileApi'
+import {
+  uploadImageApi,
+  fetchImagesByDataApi,
+  deleteImagesApi,
+  ApiImage,
+} from '../../apis/imageApi'
+import { fetchCodesByParentApi, type CodeRow } from '../../apis/codesApi'
 
 export default function GalleryPage() {
+  const LOGIN_PASSWORD_SESSION_KEY = 'login_password'
   const [showDropZone, setShowDropZone] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [files, setFiles] = useState<ApiFile[]>([])
+  const [files, setFiles] = useState<ApiImage[]>([])
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null)
   const [menuFileId, setMenuFileId] = useState<number | null>(null)
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
@@ -45,6 +56,34 @@ export default function GalleryPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid')
   const [category, setCategory] = useState<string>('전체보기')
+  const [categories, setCategories] = useState<CodeRow[]>([])
+
+  const selectedCate1Cd = category === '전체보기' ? undefined : category
+  // 렌더링은 서버에서 내려오는 목록 전체를 사용한다.
+  // (한 줄에 6개 배치는 Grid 컬럼(props)에서 제어)
+  const otherCate1Cds = categories
+    .filter((c) => (c.code_nm ?? '').includes('기타') || c.code_cd.includes('기타'))
+    .map((c) => c.code_cd)
+
+  // 전체보기에서는 "기타" 분류의 이미지는 제외한다.
+  const renderFiles =
+    category === '전체보기'
+      ? files.filter((f) => !otherCate1Cds.includes(f.cate1_cd ?? ''))
+      : files
+
+  // ⋯(기타) 메뉴에서 삭제할 때 계정 관리처럼 비밀번호 확인
+  const [passwordAuthOpen, setPasswordAuthOpen] = useState(false)
+  const [passwordAuthValue, setPasswordAuthValue] = useState('')
+  const [passwordAuthError, setPasswordAuthError] = useState('')
+  const [pendingDeleteFileId, setPendingDeleteFileId] = useState<number | null>(null)
+  const [pendingCategoryCode, setPendingCategoryCode] = useState<string | null>(null)
+
+  const requiresPasswordForCategory = (codeCd: string) => {
+    if (codeCd === '전체보기') return false
+    const found = categories.find((c) => c.code_cd === codeCd)
+    const codeNm = found?.code_nm ?? ''
+    return codeCd.includes('기타') || codeNm.includes('기타')
+  }
 
   const handleDeleteSelected = async () => {
     if (!selectedIndexes.length) return
@@ -57,20 +96,22 @@ export default function GalleryPage() {
       setIsDeleting(true)
 
       const ids = selectedIndexes
-        .map((idx) => files[idx]?.file_id)
+        .map((idx) => renderFiles[idx]?.file_id)
         .filter((id): id is number => typeof id === 'number')
 
       if (!ids.length) return
 
-      await deleteFilesApi({ fileIds: ids })
+      await deleteImagesApi({ fileIds: ids })
 
-      const data = await fetchFilesByDataApi({
+      const data = await fetchImagesByDataApi({
         menuCd: 'gallery',
-        dataId: 0,
+        dataId: -999,
+        cate1Cd: selectedCate1Cd,
       })
       setFiles(data.items)
       setSelectedIndexes([])
       setSelectMode(false)
+      setPreviewIndex(null)
     } catch (error) {
       console.error('파일 삭제 오류:', error)
       window.alert('파일 삭제 중 오류가 발생했습니다.')
@@ -79,31 +120,80 @@ export default function GalleryPage() {
     }
   }
 
-  const handleDeleteSingle = async () => {
-    if (!menuFileId) return
-    const confirmed = window.confirm(
-      `이 이미지를 삭제하시겠습니까? (file_id: ${menuFileId})`,
-    )
-    if (!confirmed) return
-
+  const doDeleteSingle = async (fileId: number) => {
     try {
       setIsDeleting(true)
 
-      await deleteFilesApi({ fileIds: [menuFileId] })
+      await deleteImagesApi({ fileIds: [fileId] })
 
-      const data = await fetchFilesByDataApi({
+      const data = await fetchImagesByDataApi({
         menuCd: 'gallery',
-        dataId: 0,
+        dataId: -999,
+        cate1Cd: selectedCate1Cd,
       })
       setFiles(data.items)
       setSelectedIndexes([])
       setSelectMode(false)
+      setPreviewIndex(null)
     } catch (error) {
       console.error('파일 삭제 오류:', error)
       window.alert('파일 삭제 중 오류가 발생했습니다.')
     } finally {
       setIsDeleting(false)
-      handleMenuClose()
+    }
+  }
+
+  const requestDeleteSinglePassword = (fileId: number) => {
+    handleMenuClose()
+    setPendingDeleteFileId(fileId)
+    setPendingCategoryCode(null)
+    setPasswordAuthValue('')
+    setPasswordAuthError('')
+    setPasswordAuthOpen(true)
+  }
+
+  const requestCategoryPassword = (codeCd: string) => {
+    setPendingCategoryCode(codeCd)
+    setPendingDeleteFileId(null)
+    setPasswordAuthValue('')
+    setPasswordAuthError('')
+    setPasswordAuthOpen(true)
+  }
+
+  const handleClosePasswordAuth = () => {
+    setPasswordAuthOpen(false)
+    setPasswordAuthValue('')
+    setPasswordAuthError('')
+    setPendingDeleteFileId(null)
+    setPendingCategoryCode(null)
+  }
+
+  const handleConfirmPasswordAuth = async () => {
+    const loginPassword = sessionStorage.getItem(LOGIN_PASSWORD_SESSION_KEY)
+    if (!loginPassword) {
+      setPasswordAuthError('로그인 인증정보가 없습니다. 다시 로그인해 주세요.')
+      return
+    }
+    if (passwordAuthValue !== loginPassword) {
+      setPasswordAuthError('비밀번호가 일치하지 않습니다.')
+      return
+    }
+
+    const fileId = pendingDeleteFileId
+    const catCode = pendingCategoryCode
+    if (!fileId && !catCode) return
+
+    try {
+      if (fileId) {
+        await doDeleteSingle(fileId)
+      } else if (catCode) {
+        setCategory(catCode)
+        setSelectedIndexes([])
+        setSelectMode(false)
+        setPreviewIndex(null)
+      }
+    } finally {
+      handleClosePasswordAuth()
     }
   }
 
@@ -126,8 +216,8 @@ export default function GalleryPage() {
   }
 
   const currentPreviewFile =
-    previewIndex !== null && previewIndex >= 0 && previewIndex < files.length
-      ? files[previewIndex]
+    previewIndex !== null && previewIndex >= 0 && previewIndex < renderFiles.length
+      ? renderFiles[previewIndex]
       : null
 
   const handlePrevPreview = () => {
@@ -139,20 +229,20 @@ export default function GalleryPage() {
 
   const handleNextPreview = () => {
     setPreviewIndex((prev) => {
-      if (prev === null || prev >= files.length - 1) return prev
+      if (prev === null || prev >= renderFiles.length - 1) return prev
       return prev + 1
     })
   }
 
   // 파일의 실제 이미지 URL 계산 (상대경로면 impsj.net 기준으로 보정)
-  const getImageUrl = (file: ApiFile) => {
+  const getImageUrl = (file: ApiImage) => {
     if (!file.file_url) return ''
     if (file.file_url.startsWith('http')) return file.file_url
     return `http://impsj.net${file.file_url}`
   }
 
   // 썸네일 URL 계산: /data/<path>/<filename> -> /data/<path>/thumbnail/<filename>
-  const getThumbnailUrl = (file: ApiFile) => {
+  const getThumbnailUrl = (file: ApiImage) => {
     const url = getImageUrl(file)
     if (!url) return ''
     try {
@@ -177,18 +267,25 @@ export default function GalleryPage() {
   }
 
   const uploadSingleFile = async (file: File) => {
-    await uploadFileApi({
+    await uploadImageApi({
       file,
       menuCd: 'gallery',
-      dataId: 0,
+      // 요구사항: data_id = -999 고정 (백엔드에서도 강제)
+      dataId: -999,
+      cate1Cd: category,
       fileNo: 1,
       fileType: 0,
       description: file.name || '',
       save_path: 'gallery',
     })
     // 업로드 후 최신 파일 목록 다시 조회
-    const data = await fetchFilesByDataApi({ menuCd: 'gallery', dataId: 0 })
+    const data = await fetchImagesByDataApi({
+      menuCd: 'gallery',
+      dataId: -999,
+      cate1Cd: selectedCate1Cd,
+    })
     setFiles(data.items)
+    setPreviewIndex(null)
   }
 
   const handleUploadClick = () => {
@@ -209,14 +306,39 @@ export default function GalleryPage() {
   useEffect(() => {
     const fetchFiles = async () => {
       try {
-        const data = await fetchFilesByDataApi({ menuCd: 'gallery', dataId: 0 })
+        const data = await fetchImagesByDataApi({
+          menuCd: 'gallery',
+          dataId: -999,
+          cate1Cd: selectedCate1Cd,
+        })
         setFiles(data.items)
+        setSelectedIndexes([])
+        setSelectMode(false)
+        setPreviewIndex(null)
       } catch (error) {
         console.error('파일 목록을 불러오는 중 오류가 발생했습니다:', error)
       }
     }
 
     fetchFiles()
+  }, [selectedCate1Cd])
+
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const res = await fetchCodesByParentApi('galleryCate')
+        if (cancelled) return
+        setCategories(res.items)
+      } catch (e) {
+        console.error('galleryCate 코드 로딩 실패:', e)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
   return (
     <Box
@@ -276,9 +398,13 @@ export default function GalleryPage() {
           <Button
             variant="outlined"
             color="primary"
-            disabled={!selectedFiles.length}
+            disabled={!selectedFiles.length || !selectedCate1Cd}
             onClick={async () => {
               if (!selectedFiles.length) return
+              if (!selectedCate1Cd) {
+                window.alert('분류를 먼저 선택해 주세요.')
+                return
+              }
               try {
                 setIsUploading(true)
                 setUploadProgress(0)
@@ -318,12 +444,16 @@ export default function GalleryPage() {
             color="primary"
             onClick={() => {
               if (!selectMode) setSelectMode(true)
-              const allIndexes = files.map((_, i) => i)
-              setSelectedIndexes(selectedIndexes.length === files.length ? [] : allIndexes)
+              const allIndexes = renderFiles.map((_, i) => i)
+              setSelectedIndexes(
+                selectedIndexes.length === renderFiles.length ? [] : allIndexes,
+              )
             }}
-            disabled={!files.length}
+            disabled={!renderFiles.length}
           >
-            {selectMode && selectedIndexes.length === files.length ? '전체해제' : '전체선택'}
+            {selectMode && selectedIndexes.length === renderFiles.length
+              ? '전체해제'
+              : '전체선택'}
           </Button>
           <Button
             variant="outlined"
@@ -337,13 +467,22 @@ export default function GalleryPage() {
           <Select
             size="small"
             value={category}
-            onChange={(e) => setCategory(e.target.value as string)}
+            onChange={(e) => {
+              const next = e.target.value as string
+              if (requiresPasswordForCategory(next)) {
+                requestCategoryPassword(next)
+                return
+              }
+              setCategory(next)
+            }}
             sx={{ minWidth: 160, fontSize: 13, mr: 1.5 }}
           >
             <MenuItem value="전체보기">전체보기</MenuItem>
-            <MenuItem value="MAN">MAN</MenuItem>
-            <MenuItem value="FAMILY">FAMILY</MenuItem>
-            <MenuItem value="자연풍경">자연풍경</MenuItem>
+            {categories.map((c) => (
+              <MenuItem key={c.code_id} value={c.code_cd}>
+                {c.code_nm ?? c.code_cd}
+              </MenuItem>
+            ))}
           </Select>
           <Box
             sx={{
@@ -475,20 +614,20 @@ export default function GalleryPage() {
           </>
         )}
 
-        {files.length === 0 ? (
+        {renderFiles.length === 0 ? (
           <Box sx={{ py: 6, textAlign: 'center' }}>
             <Typography color="text.secondary">데이터 없음</Typography>
           </Box>
         ) : viewMode === 'grid' ? (
           <Grid container spacing={2.5}>
-            {files.map((item, index) => (
+            {renderFiles.map((item, index) => (
               <Grid
                 key={`${item.file_id}-${index}`}
                 item
                 xs={12}
-                sm={6}
-                md={4}
-                lg={3}
+                sm={2}
+                md={2}
+                lg={2}
               >
                 <Card
                   sx={{
@@ -606,7 +745,7 @@ export default function GalleryPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {files.map((item, index) => (
+              {renderFiles.map((item, index) => (
                 <TableRow key={item.file_id} hover>
                   <TableCell align="center">{index + 1}</TableCell>
                   <TableCell>
@@ -660,11 +799,57 @@ export default function GalleryPage() {
             수정
           </MenuItem>
           <MenuItem
-            onClick={handleDeleteSingle}
+            onClick={() => {
+              if (!menuFileId) return
+              requestDeleteSinglePassword(menuFileId)
+            }}
           >
             삭제
           </MenuItem>
         </Menu>
+
+        <Dialog
+          open={passwordAuthOpen}
+          onClose={handleClosePasswordAuth}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontWeight: 600 }}>비밀번호 확인</DialogTitle>
+          <DialogContent dividers sx={{ pt: 3 }}>
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary">
+                로그인 비밀번호를 입력해 주세요.
+              </Typography>
+              <TextField
+                fullWidth
+                autoFocus
+                size="small"
+                type="password"
+                label="로그인 비밀번호"
+                value={passwordAuthValue}
+                onChange={(e) => {
+                  setPasswordAuthValue(e.target.value)
+                  if (passwordAuthError) setPasswordAuthError('')
+                }}
+                error={Boolean(passwordAuthError)}
+                helperText={passwordAuthError || ' '}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    void handleConfirmPasswordAuth()
+                  }
+                }}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button onClick={handleClosePasswordAuth} color="inherit">
+              취소
+            </Button>
+            <Button onClick={() => void handleConfirmPasswordAuth()} variant="contained">
+              확인
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         <Dialog
           open={previewIndex !== null && currentPreviewFile !== null}
@@ -738,7 +923,7 @@ export default function GalleryPage() {
                 <IconButton
                   onClick={handleNextPreview}
                   disabled={
-                    previewIndex === null || previewIndex >= files.length - 1
+                    previewIndex === null || previewIndex >= renderFiles.length - 1
                   }
                   sx={{ color: 'white' }}
                 >

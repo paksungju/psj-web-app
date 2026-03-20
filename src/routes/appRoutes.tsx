@@ -29,6 +29,7 @@ import MailsPage from '../pages/mails'
 import MailFormPage from '../pages/mails/mailForm'
 import MailViewPage from '../pages/mails/view'
 import ServerStatusPage from '../pages/server'
+import CodesPage from '../pages/codes'
 
 interface AppRoutesProps {
   selectedMenu: string
@@ -57,6 +58,7 @@ function AppShell({
         component="main"
         sx={{
           flexGrow: 1,
+          minHeight: 0,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -90,6 +92,9 @@ function AppShell({
         <Box
           sx={{
             flexGrow: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
             overflow: 'auto',
             mt: isMobile ? '64px' : 0,
           }}
@@ -98,7 +103,25 @@ function AppShell({
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/" element={<HomeScreen selectedMenu={selectedMenu} />} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/chat" element={<ChatPage />} />
+            <Route
+              path="/chat"
+              element={
+                <Box
+                  sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    // 부모가 flex 컬럼이어야 flex:1로 뷰포트 안 높이를 받음 → 내부 메시지 영역만 스크롤
+                    height: '100%',
+                    maxHeight: '100%',
+                  }}
+                >
+                  <ChatPage />
+                </Box>
+              }
+            />
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/apps-accounts" element={<AccountsPage />} />
             <Route path="/app/configs" element={<AppConfigPage />} />
@@ -122,6 +145,7 @@ function AppShell({
             <Route path="/mails/create" element={<MailFormPage />} />
             <Route path="/mails/:dataId" element={<MailViewPage />} />
             <Route path="/server" element={<ServerStatusPage />} />
+            <Route path="/codes" element={<CodesPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Box>

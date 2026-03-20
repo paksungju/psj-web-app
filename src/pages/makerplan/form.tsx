@@ -375,9 +375,9 @@ export default function MakerPlanFormPage() {
     let cancelled = false
     const loadFiles = async () => {
       try {
-        const files = await fetchImagesByDataApi({ menuCd, dataId: selectedStepDataId })
+        const res = await fetchImagesByDataApi({ menuCd, dataId: selectedStepDataId })
         if (cancelled) return
-        const items: AttachedFile[] = files.map((f: ApiImage) => ({
+        const items: AttachedFile[] = res.items.map((f: ApiImage) => ({
           type: 'uploaded',
           fileId: f.file_id,
           fileUrl: toAbsoluteFileUrl(f.file_url),

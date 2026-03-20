@@ -88,7 +88,12 @@ const menuItems: SidebarMenuItem[] = [
       { id: 'spt-resources', label: '리소스관리' },
     ],
   },
-  { id: 'settings', label: '설정', icon: <SettingsIcon /> },
+  {
+    id: 'settings',
+    label: '설정',
+    icon: <SettingsIcon />,
+    children: [{ id: 'codes', label: '코드관리' }],
+  },
 ]
 
 const drawerWidth = 280
@@ -98,6 +103,7 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({
     apps: true,
     spt: true,
+    settings: true,
   })
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))

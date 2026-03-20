@@ -1,0 +1,23 @@
+// vite.config.ts
+import { defineConfig } from "file:///sessions/zealous-awesome-thompson/mnt/psj-data-space/psj-web-app/node_modules/vite/dist/node/index.js";
+import react from "file:///sessions/zealous-awesome-thompson/mnt/psj-data-space/psj-web-app/node_modules/@vitejs/plugin-react/dist/index.js";
+var vite_config_default = defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      "/api": { target: "http://impsj.net", changeOrigin: true }
+    }
+  },
+  optimizeDeps: {
+    include: ["ckeditor5"]
+  },
+  build: {
+    outDir: "/Users/parksungju/psj-data-space/nginx/html/dist",
+    assetsDir: "assets"
+    // 정적 에셋 폴더 (기본값: 'assets')
+  }
+});
+export {
+  vite_config_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidml0ZS5jb25maWcudHMiXSwKICAic291cmNlc0NvbnRlbnQiOiBbImNvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9kaXJuYW1lID0gXCIvc2Vzc2lvbnMvemVhbG91cy1hd2Vzb21lLXRob21wc29uL21udC9wc2otZGF0YS1zcGFjZS9wc2otd2ViLWFwcFwiO2NvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9maWxlbmFtZSA9IFwiL3Nlc3Npb25zL3plYWxvdXMtYXdlc29tZS10aG9tcHNvbi9tbnQvcHNqLWRhdGEtc3BhY2UvcHNqLXdlYi1hcHAvdml0ZS5jb25maWcudHNcIjtjb25zdCBfX3ZpdGVfaW5qZWN0ZWRfb3JpZ2luYWxfaW1wb3J0X21ldGFfdXJsID0gXCJmaWxlOi8vL3Nlc3Npb25zL3plYWxvdXMtYXdlc29tZS10aG9tcHNvbi9tbnQvcHNqLWRhdGEtc3BhY2UvcHNqLXdlYi1hcHAvdml0ZS5jb25maWcudHNcIjtpbXBvcnQgeyBkZWZpbmVDb25maWcgfSBmcm9tICd2aXRlJ1xuaW1wb3J0IHJlYWN0IGZyb20gJ0B2aXRlanMvcGx1Z2luLXJlYWN0J1xuXG4vLyBodHRwczovL3ZpdGVqcy5kZXYvY29uZmlnL1xuZXhwb3J0IGRlZmF1bHQgZGVmaW5lQ29uZmlnKHtcbiAgcGx1Z2luczogW3JlYWN0KCldLFxuICBzZXJ2ZXI6IHtcbiAgICBwcm94eToge1xuICAgICAgJy9hcGknOiB7IHRhcmdldDogJ2h0dHA6Ly9pbXBzai5uZXQnLCBjaGFuZ2VPcmlnaW46IHRydWUgfSxcbiAgICB9LFxuICB9LFxuICBvcHRpbWl6ZURlcHM6IHtcbiAgICBpbmNsdWRlOiBbJ2NrZWRpdG9yNSddLFxuICB9LFxuICBidWlsZDoge1xuICAgIG91dERpcjogJy9Vc2Vycy9wYXJrc3VuZ2p1L3Bzai1kYXRhLXNwYWNlL25naW54L2h0bWwvZGlzdCcsXG4gICAgYXNzZXRzRGlyOiAnYXNzZXRzJywgICAvLyBcdUM4MTVcdUM4MDEgXHVDNUQwXHVDMTRCIFx1RDNGNFx1QjM1NCAoXHVBRTMwXHVCQ0Y4XHVBQzEyOiAnYXNzZXRzJylcbiAgfSxcbn0pXG4iXSwKICAibWFwcGluZ3MiOiAiO0FBQXFYLFNBQVMsb0JBQW9CO0FBQ2xaLE9BQU8sV0FBVztBQUdsQixJQUFPLHNCQUFRLGFBQWE7QUFBQSxFQUMxQixTQUFTLENBQUMsTUFBTSxDQUFDO0FBQUEsRUFDakIsUUFBUTtBQUFBLElBQ04sT0FBTztBQUFBLE1BQ0wsUUFBUSxFQUFFLFFBQVEsb0JBQW9CLGNBQWMsS0FBSztBQUFBLElBQzNEO0FBQUEsRUFDRjtBQUFBLEVBQ0EsY0FBYztBQUFBLElBQ1osU0FBUyxDQUFDLFdBQVc7QUFBQSxFQUN2QjtBQUFBLEVBQ0EsT0FBTztBQUFBLElBQ0wsUUFBUTtBQUFBLElBQ1IsV0FBVztBQUFBO0FBQUEsRUFDYjtBQUNGLENBQUM7IiwKICAibmFtZXMiOiBbXQp9Cg==

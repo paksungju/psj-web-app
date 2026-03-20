@@ -78,6 +78,8 @@ export default function AppRoutes() {
       setSelectedMenu('spt-resources')
     } else if (location.pathname === '/server' || location.pathname.startsWith('/server/')) {
       setSelectedMenu('server')
+    } else if (location.pathname === '/codes' || location.pathname.startsWith('/codes/')) {
+      setSelectedMenu('codes')
     }
   }, [location.pathname])
 
@@ -124,6 +126,8 @@ export default function AppRoutes() {
       navigate('/spt/resources')
     } else if (menuId === 'server') {
       navigate('/server')
+    } else if (menuId === 'codes') {
+      navigate('/codes')
     } else {
       navigate('/')
     }
