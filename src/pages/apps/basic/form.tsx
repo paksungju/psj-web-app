@@ -33,6 +33,9 @@ import {
   fetchFilesByDataApi,
   deleteFilesApi,
 } from '../../../apis/fileApi'
+import InfoBoardCategorySidebar, {
+  normalizeInfoBoardCategory,
+} from './InfoBoardCategorySidebar'
 
 const numFields: (keyof ApiAppPayload)[] = [
   'data_id', 'app_id', 'gr_num', 'reply_cd', 'parent_id', 'is_commt', 'co_num', 'co_reply',
@@ -590,11 +593,25 @@ export default function AppDataFormPage() {
     }
   }
 
+  const categorySelectedKey = normalizeInfoBoardCategory(form.cate1)
+
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
         <TopBar />
-        <Typography color="text.secondary">로딩 중...</Typography>
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            borderRadius: 3,
+            backgroundColor: 'background.paper',
+          }}
+        >
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+            <InfoBoardCategorySidebar selectedKey={categorySelectedKey} />
+            <Typography color="text.secondary">로딩 중...</Typography>
+          </Box>
+        </Paper>
       </Box>
     )
   }
@@ -617,6 +634,9 @@ export default function AppDataFormPage() {
           {isEdit ? '앱 데이터를 수정합니다.' : '새 앱 데이터를 등록합니다.'}
         </Typography>
 
+        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+          <InfoBoardCategorySidebar selectedKey={categorySelectedKey} />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack spacing={2.5}>
           <Box sx={{ display: 'none' }}>
             <TextField
@@ -913,6 +933,8 @@ export default function AppDataFormPage() {
             {saving ? '저장 중...' : '저장'}
           </Button>
         </Stack>
+          </Box>
+        </Box>
       </Paper>
     </Box>
   )

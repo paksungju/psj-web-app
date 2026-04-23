@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Box,
   Paper,
@@ -22,6 +22,7 @@ import {
   deleteAppDataBatchApi,
   type ApiAppData,
 } from '../../../apis/appApi'
+import { normalizeInfoBoardCategory } from './InfoBoardCategorySidebar'
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-'
@@ -38,6 +39,7 @@ function formatDate(dateStr: string | null | undefined): string {
 
 export default function AppConfigsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [list, setList] = useState<ApiAppData[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -46,15 +48,10 @@ export default function AppConfigsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
-  const normalizeCategory = (value: string | null | undefined): string => {
-    const trimmed = value?.trim()
-    return trimmed ? trimmed : '미분류'
-  }
-
   const categoryItems = useMemo(() => {
     const counts = new Map<string, number>()
     list.forEach((row) => {
-      const key = normalizeCategory(row.cate1)
+      const key = normalizeInfoBoardCategory(row.cate1)
       counts.set(key, (counts.get(key) ?? 0) + 1)
     })
     const dynamicItems = Array.from(counts.entries())
@@ -65,7 +62,7 @@ export default function AppConfigsPage() {
 
   const filteredList = useMemo(() => {
     if (selectedCategory === 'all') return list
-    return list.filter((row) => normalizeCategory(row.cate1) === selectedCategory)
+    return list.filter((row) => normalizeInfoBoardCategory(row.cate1) === selectedCategory)
   }, [list, selectedCategory])
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,10 +102,18 @@ export default function AppConfigsPage() {
   }, [page, pageSize])
 
   useEffect(() => {
+    const raw = new URLSearchParams(location.search).get('category')
+    if (raw == null || raw === '') return
+    setPage(1)
+    setSelectedCategory(decodeURIComponent(raw))
+  }, [location.search])
+
+  useEffect(() => {
+    if (loading) return
     if (selectedCategory === 'all') return
     const exists = categoryItems.some((item) => item.key === selectedCategory)
     if (!exists) setSelectedCategory('all')
-  }, [categoryItems, selectedCategory])
+  }, [categoryItems, selectedCategory, loading])
 
   const handleDeleteSelected = async () => {
     const ids = Array.from(selectedIds)
@@ -157,13 +162,14 @@ export default function AppConfigsPage() {
         }}
       >
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-          앱 데이터 목록
+          정보게시판 목록
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          앱 데이터(AppData) 목록입니다.
+          정보게시판 목록입니다.
         </Typography>
 
         <Button
+          size="small"
           variant="outlined"
           color="inherit"
           sx={{ mb: 2 }}
@@ -172,6 +178,7 @@ export default function AppConfigsPage() {
           등록하기
         </Button>
         <Button
+          size="small"
           variant="outlined"
           color="inherit"
           sx={{ mb: 2, ml: '10px' }}
@@ -200,7 +207,14 @@ export default function AppConfigsPage() {
                 <ListItemButton
                   key={item.key}
                   selected={selectedCategory === item.key}
-                  onClick={() => setSelectedCategory(item.key)}
+                  onClick={() => {
+                    setSelectedCategory(item.key)
+                    if (item.key === 'all') {
+                      navigate('/apps/info')
+                    } else {
+                      navigate(`/apps/info?category=${encodeURIComponent(item.key)}`)
+                    }
+                  }}
                   sx={{
                     mx: 0.5,
                     borderRadius: 1,

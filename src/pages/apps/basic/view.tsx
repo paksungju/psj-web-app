@@ -13,6 +13,9 @@ import {
 } from '@mui/material'
 import TopBar from '../../../components/TopBar'
 import { fetchAppDataByIdApi, deleteAppDataApi, type ApiAppData } from '../../../apis/appApi'
+import InfoBoardCategorySidebar, {
+  normalizeInfoBoardCategory,
+} from './InfoBoardCategorySidebar'
 import { fetchFilesByDataApi, type ApiFile } from '../../../apis/fileApi'
 import CloseIcon from '@mui/icons-material/Close'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
@@ -101,7 +104,12 @@ export default function AppDataViewPage() {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
         <TopBar />
-        <Typography color="text.secondary">로딩 중...</Typography>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper' }}>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+            <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(undefined)} />
+            <Typography color="text.secondary">로딩 중...</Typography>
+          </Box>
+        </Paper>
       </Box>
     )
   }
@@ -110,13 +118,18 @@ export default function AppDataViewPage() {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
         <TopBar />
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            데이터를 찾을 수 없습니다.
-          </Typography>
-          <Button variant="outlined" onClick={() => navigate('/app-info')}>
-            목록으로
-          </Button>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper' }}>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+            <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(undefined)} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                데이터를 찾을 수 없습니다.
+              </Typography>
+              <Button variant="outlined" onClick={() => navigate('/apps/info')}>
+                목록으로
+              </Button>
+            </Box>
+          </Box>
         </Paper>
       </Box>
     )
@@ -155,6 +168,9 @@ export default function AppDataViewPage() {
           backgroundColor: 'background.paper',
         }}
       >
+        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+          <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(data.cate1)} />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
           {data.ap_subject ?? '(제목 없음)'}
         </Typography>
@@ -277,6 +293,8 @@ export default function AppDataViewPage() {
 
           
         </Stack>
+          </Box>
+        </Box>
       </Paper>
 
       <Dialog

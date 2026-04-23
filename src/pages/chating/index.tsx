@@ -1,8 +1,14 @@
 import { useEffect, useState, useRef, useCallback, useLayoutEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import type { NavigateFunction } from 'react-router-dom'
 import { CircularProgress } from '@mui/material'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import TopBar from '../../components/TopBar'
+import { randomUUID } from '../../utils/randomUUID'
 
 // ── 세션 ID 관리 ──────────────────────────────────────────────────────────────
 const SESSION_KEY = 'chat_session_id'
@@ -10,20 +16,20 @@ const SESSION_KEY = 'chat_session_id'
 function getOrCreateSessionId(): string {
   let sid = localStorage.getItem(SESSION_KEY)
   if (!sid) {
-    sid = crypto.randomUUID()
+    sid = randomUUID()
     localStorage.setItem(SESSION_KEY, sid)
   }
   return sid
 }
 
 function createNewSessionId(): string {
-  const sid = crypto.randomUUID()
+  const sid = randomUUID()
   localStorage.setItem(SESSION_KEY, sid)
   return sid
 }
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
-type ModelType = 'exaone' | 'claude' | 'gemini'
+type ModelType = 'exaone' | 'claude' | 'gemini' | 'gemma'
 
 interface ChatMessage {
   id: number
@@ -42,6 +48,38 @@ interface SessionItem {
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 const CHAT_PAGE_SIZE = 10
+/** 로그인 페이지와 동일 키 — 채팅 저장 시 DB message JSON에 로그인 id 넣기 위해 Bearer 전달 */
+const AUTH_TOKEN_KEY = 'auth_token'
+
+function chatAuthHeaders(): Record<string, string> {
+  if (typeof localStorage === 'undefined') return {}
+  const t = localStorage.getItem(AUTH_TOKEN_KEY)
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+
+async function readFastApiErrorDetail(res: Response): Promise<string> {
+  try {
+    const data = (await res.json()) as { detail?: unknown }
+    const d = data.detail
+    if (typeof d === 'string') return d
+    if (Array.isArray(d) && d.length > 0) {
+      const first = d[0]
+      if (typeof first === 'string') return first
+      if (first && typeof first === 'object' && 'msg' in first) return String((first as { msg: string }).msg)
+    }
+  } catch {
+    /* ignore */
+  }
+  if (res.status === 401) return '로그인이 만료되었거나 토큰이 유효하지 않습니다.'
+  return `요청 실패 (HTTP ${res.status})`
+}
+
+function clearAuthAndNavigateToLogin(navigate: NavigateFunction): void {
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+  localStorage.removeItem('isLoggedIn')
+  window.dispatchEvent(new Event('auth-change'))
+  navigate('/login', { replace: true })
+}
 
 /**
  * `/api/*` 요청용 (배포: 현재 origin, 로컬: '' → Vite가 /api 프록시)
@@ -133,21 +171,32 @@ const GeminiLogo = () => (
   }}>G</div>
 )
 
+const GemmaLogo = () => (
+  <div style={{
+    width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+    background: 'linear-gradient(135deg, #ea4335, #fbbc04)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 13, fontWeight: 700, color: '#fff',
+  }}>G4</div>
+)
+
 const MODEL_TAB_STYLE: Record<ModelType, { activeBg: string; label: string }> = {
   exaone: { activeBg: '#4f46e5', label: 'EXAONE' },
   claude: { activeBg: '#d97706', label: 'Claude' },
   gemini: { activeBg: '#2563eb', label: 'Gemini' },
+  gemma: { activeBg: '#ea4335', label: 'Gemma 4' },
 }
 
 function BotAvatar({ model }: { model?: ModelType }) {
   if (model === 'claude') return <ClaudeLogo />
   if (model === 'gemini') return <GeminiLogo />
+  if (model === 'gemma') return <GemmaLogo />
   return <ExaoneLogo />
 }
 
 // ── 모델 선택 토글 ─────────────────────────────────────────────────────────────
 function ModelToggle({ model, onChange }: { model: ModelType; onChange: (m: ModelType) => void }) {
-  const order: ModelType[] = ['exaone', 'claude', 'gemini']
+  const order: ModelType[] = ['exaone', 'claude', 'gemini', 'gemma']
   return (
     <div style={{
       display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end',
@@ -195,11 +244,16 @@ function mapRawRowToChatMessage(item: any, idx: number): ChatMessage {
   const created = item.created_at ?? item.time ?? new Date().toISOString()
   const d = new Date(created)
   const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+  // additional_kwargs.chat_api 에서 모델 정보 추출 (exaone | claude | gemini)
+  const chatApi = payload?.data?.additional_kwargs?.chat_api as string | undefined
+  const model: ModelType | undefined =
+    chatApi === 'claude' ? 'claude' : chatApi === 'gemini' ? 'gemini' : chatApi === 'gemma' ? 'gemma' : chatApi === 'exaone' ? 'exaone' : undefined
   return {
     id: item.id ?? idx + 1,
     author,
     text: normalizeText(item.text ?? payload ?? item.message ?? ''),
     time,
+    model,
   }
 }
 
@@ -234,7 +288,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
             ? <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</span>
             : msg.text === ''
               ? <ThinkingDots />
-              : <div style={{ fontSize: 14 }}><ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown></div>
+              : <div style={{ fontSize: 14 }}><ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.text}</ReactMarkdown></div>
           }
         </div>
         <span style={{ fontSize: 11, color: '#9ca3af' }}>{msg.time}</span>
@@ -384,9 +438,28 @@ interface SidebarProps {
   refreshing: boolean
   onCloseMobile?: () => void
   onRetryList?: () => void
+  onDeleteSession?: (sid: string) => void
 }
 
-function Sidebar({ sessions, serverSessionCount, listError, currentSessionId, loading, onSelectSession, onNewChat, refreshing, onCloseMobile, onRetryList }: SidebarProps) {
+function Sidebar({ sessions, serverSessionCount, listError, currentSessionId, loading, onSelectSession, onNewChat, refreshing, onCloseMobile, onRetryList, onDeleteSession }: SidebarProps) {
+  const [menuSid, setMenuSid] = useState<string | null>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
+
+  // 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!menuSid) return
+    const close = () => setMenuSid(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [menuSid])
+
+  const openMenu = (e: React.MouseEvent, sid: string) => {
+    e.stopPropagation()
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setMenuPos({ top: rect.bottom + 4, left: rect.left - 80 })
+    setMenuSid(prev => prev === sid ? null : sid)
+  }
+
   return (
     <div style={{
       width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column',
@@ -466,40 +539,90 @@ function Sidebar({ sessions, serverSessionCount, listError, currentSessionId, lo
         {sessions.map((s) => {
           const isActive = s.session_id === currentSessionId
           return (
-            <button
-              key={s.session_id}
-              onClick={() => { onSelectSession(s.session_id); onCloseMobile?.() }}
-              style={{
-                width: '100%', textAlign: 'left', border: 'none', borderRadius: 8,
-                padding: '9px 10px', marginBottom: 2, cursor: 'pointer',
-                background: isActive ? '#ede9fe' : 'transparent',
-                transition: 'background 0.12s',
-                display: 'flex', flexDirection: 'column', gap: 3,
-              }}
-              onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = '#f3f4f6' }}
-              onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-            >
-              {/* 제목 */}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ color: isActive ? '#4f46e5' : '#9ca3af', flexShrink: 0 }}>
-                  <ChatIcon />
-                </span>
-                <span style={{
-                  fontSize: 13, fontWeight: isActive ? 600 : 400,
-                  color: isActive ? '#3730a3' : '#374151',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  lineHeight: 1.4,
-                }}>
-                  {s.title || '새 대화'}
-                </span>
-              </div>
-              {/* 메시지 수 */}
-              <div style={{ paddingLeft: 20, fontSize: 11, color: '#9ca3af' }}>
-                {Math.floor(s.message_count / 2)}턴 · #{s.session_id.slice(0, 6)}
-              </div>
-            </button>
+            <div key={s.session_id} style={{ position: 'relative', marginBottom: 2 }}>
+              {/* 세션 선택 버튼 */}
+              <button
+                onClick={() => { onSelectSession(s.session_id); onCloseMobile?.() }}
+                style={{
+                  width: '100%', textAlign: 'left', border: 'none', borderRadius: 8,
+                  padding: '9px 32px 9px 10px', cursor: 'pointer',
+                  background: isActive ? '#ede9fe' : 'transparent',
+                  transition: 'background 0.12s',
+                  display: 'flex', flexDirection: 'column', gap: 3,
+                }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = '#f3f4f6' }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+              >
+                {/* 제목 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: isActive ? '#4f46e5' : '#9ca3af', flexShrink: 0 }}>
+                    <ChatIcon />
+                  </span>
+                  <span style={{
+                    fontSize: 13, fontWeight: isActive ? 600 : 400,
+                    color: isActive ? '#3730a3' : '#374151',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    lineHeight: 1.4,
+                  }}>
+                    {s.title || '새 대화'}
+                  </span>
+                </div>
+                {/* 메시지 수 */}
+                <div style={{ paddingLeft: 20, fontSize: 11, color: '#9ca3af' }}>
+                  {Math.floor(s.message_count / 2)}턴 · #{s.session_id.slice(0, 6)}
+                </div>
+              </button>
+
+              {/* ⋮ 더보기 버튼 — 선택된 항목에서만 노출 */}
+              {isActive && (
+                <button
+                  onClick={(e) => openMenu(e, s.session_id)}
+                  title="더보기"
+                  style={{
+                    position: 'absolute', top: '50%', right: 4,
+                    transform: 'translateY(-50%)',
+                    border: 'none', borderRadius: 6, background: 'transparent',
+                    width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: '#9ca3af', fontSize: 16, lineHeight: 1,
+                    padding: 0,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#e5e7eb'; (e.currentTarget as HTMLButtonElement).style.color = '#374151' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af' }}
+                >
+                  ⋮
+                </button>
+              )}
+
+              {/* 팝업 메뉴 */}
+              {menuSid === s.session_id && (
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{
+                    position: 'fixed', top: menuPos.top, left: menuPos.left,
+                    background: '#ffffff', border: '1px solid #e5e7eb',
+                    borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    zIndex: 9999, minWidth: 110, overflow: 'hidden',
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setMenuSid(null)
+                      onDeleteSession?.(s.session_id)
+                    }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 14px', border: 'none', background: 'transparent',
+                      cursor: 'pointer', fontSize: 13, color: '#ef4444',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#fef2f2' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                  >
+                    <span style={{ fontSize: 15 }}>🗑</span> 삭제
+                  </button>
+                </div>
+              )}
+            </div>
           )
         })}
       </div>
@@ -514,6 +637,7 @@ function Sidebar({ sessions, serverSessionCount, listError, currentSessionId, lo
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 export default function ChatPage() {
+  const navigate = useNavigate()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -524,6 +648,9 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string>(() => getOrCreateSessionId())
   const [sessions, setSessions] = useState<SessionItem[]>([])
   const [sessionsRefreshing, setSessionsRefreshing] = useState(false)
+  // 사실 저장 알림 토스트
+  const [savedFactToast, setSavedFactToast] = useState<string | null>(null)
+  const factToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [sessionsListError, setSessionsListError] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window !== 'undefined' ? !window.matchMedia('(max-width: 900px)').matches : true,
@@ -725,6 +852,13 @@ export default function ChatPage() {
     fetchMessages()
   }, [sessionId])
 
+  // ── 사실 저장 토스트 표시 ────────────────────────────────────────────────
+  const showFactToast = useCallback((fact: string) => {
+    if (factToastTimerRef.current) clearTimeout(factToastTimerRef.current)
+    setSavedFactToast(fact)
+    factToastTimerRef.current = setTimeout(() => setSavedFactToast(null), 4000)
+  }, [])
+
   // ── 새 채팅 ──────────────────────────────────────────────────────────────
   const startNewChat = useCallback(() => {
     if (loading) return
@@ -766,13 +900,30 @@ export default function ChatPage() {
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setLoading(true)
 
-    if (model === 'exaone') {
+    if (model === 'exaone' || model === 'gemma') {
       const botMsgId = userMsgId + 1
       setMessages(prev => [...prev, { id: botMsgId, author: 'bot', text: '', time: now(), model }])
 
       try {
-        const url = `${STREAM_BASE}/ask-stream?topic=${encodeURIComponent(trimmed)}&session_id=${sid}&web_search=${useWebSearch}`
-        const res = await fetch(url)
+        const streamPath = model === 'gemma' ? 'ask-gemma-stream' : 'ask-stream'
+        const url = `${STREAM_BASE}/${streamPath}?topic=${encodeURIComponent(trimmed)}&session_id=${sid}&web_search=${useWebSearch}`
+        const res = await fetch(url, { headers: chatAuthHeaders() })
+        if (res.status === 401) {
+          const detail = await readFastApiErrorDetail(res)
+          window.alert(detail)
+          clearAuthAndNavigateToLogin(navigate)
+          setMessages(prev => prev.map(m =>
+            m.id === botMsgId ? { ...m, text: detail } : m,
+          ))
+          return
+        }
+        if (!res.ok) {
+          const detail = await readFastApiErrorDetail(res)
+          setMessages(prev => prev.map(m =>
+            m.id === botMsgId ? { ...m, text: detail } : m,
+          ))
+          return
+        }
         if (!res.body) throw new Error('스트림 없음')
 
         const reader = res.body.getReader()
@@ -791,7 +942,11 @@ export default function ChatPage() {
             const raw = line.slice(5).trim()
             if (raw === '[DONE]') break
             try {
-              const payload = JSON.parse(raw) as { delta?: string }
+              const payload = JSON.parse(raw) as { delta?: string; fact_saved?: string }
+              if (payload.fact_saved) {
+                // 사실 저장 알림 토스트
+                showFactToast(payload.fact_saved)
+              }
               if (payload.delta) {
                 setMessages(prev => prev.map(m =>
                   m.id === botMsgId ? { ...m, text: m.text + payload.delta! } : m
@@ -813,7 +968,19 @@ export default function ChatPage() {
       const path = model === 'claude' ? 'ask-claude' : 'ask-gemini'
       try {
         const url = `${STREAM_BASE}/${path}?topic=${encodeURIComponent(trimmed)}&session_id=${sid}&web_search=${useWebSearch}`
-        const res = await fetch(url)
+        const res = await fetch(url, { headers: chatAuthHeaders() })
+        if (res.status === 401) {
+          const detail = await readFastApiErrorDetail(res)
+          window.alert(detail)
+          clearAuthAndNavigateToLogin(navigate)
+          setMessages(prev => [...prev, { id: userMsgId + 1, author: 'bot', text: detail, time: now(), model }])
+          return
+        }
+        if (!res.ok) {
+          const detail = await readFastApiErrorDetail(res)
+          setMessages(prev => [...prev, { id: userMsgId + 1, author: 'bot', text: detail, time: now(), model }])
+          return
+        }
         const data = await res.json() as { answer?: string }
         setMessages(prev => [...prev, { id: userMsgId + 1, author: 'bot', text: data?.answer || '(응답이 없습니다.)', time: now(), model }])
       } catch (e) {
@@ -824,7 +991,7 @@ export default function ChatPage() {
         setTimeout(() => fetchSessions(), 800)
       }
     }
-  }, [input, loading, model, webSearch, sessionId, fetchSessions])
+  }, [input, loading, model, webSearch, sessionId, fetchSessions, navigate])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
@@ -851,6 +1018,30 @@ export default function ChatPage() {
       <div style={{ borderBottom: '1px solid #e5e7eb', background: '#ffffff', flexShrink: 0 }}>
         <TopBar />
       </div>
+
+      {/* 📌 사실 저장 토스트 알림 */}
+      {savedFactToast && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, display: 'flex', alignItems: 'center', gap: 10,
+          background: '#1a1a2e', color: '#fff',
+          border: '1px solid #4f46e5', borderRadius: 12,
+          padding: '12px 18px', boxShadow: '0 4px 24px rgba(79,70,229,0.35)',
+          fontSize: 13, fontWeight: 500, maxWidth: 480,
+          animation: 'slideDown 0.25s ease',
+        }}>
+          <span style={{ fontSize: 18 }}>📌</span>
+          <div>
+            <div style={{ fontWeight: 700, color: '#a5b4fc', marginBottom: 2 }}>사실 저장됨</div>
+            <div style={{ color: '#c7d2fe', wordBreak: 'break-word' }}>{savedFactToast}</div>
+          </div>
+          <button onClick={() => setSavedFactToast(null)} style={{
+            background: 'none', border: 'none', color: '#6b7280',
+            cursor: 'pointer', fontSize: 16, marginLeft: 8, padding: 0,
+          }}>✕</button>
+        </div>
+      )}
+      <style>{`@keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-12px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
 
       {/* 사이드바 + 채팅 영역 (좌우 분할) */}
       <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
@@ -898,6 +1089,21 @@ export default function ChatPage() {
             refreshing={sessionsRefreshing}
             onCloseMobile={isNarrow ? () => setSidebarOpen(false) : undefined}
             onRetryList={fetchSessions}
+            onDeleteSession={async (sid) => {
+              try {
+                const res = await fetch(
+                  `${getApiPrefix()}/api/v1/chat/sessions/${encodeURIComponent(sid)}`,
+                  { method: 'DELETE', headers: chatAuthHeaders() },
+                )
+                if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                // 삭제된 세션이 현재 활성 세션이면 새 채팅으로 전환
+                if (sid === sessionId) startNewChat()
+                // 세션 목록 새로고침
+                await fetchSessions()
+              } catch (_err) {
+                alert('삭제 중 오류가 발생했습니다.')
+              }
+            }}
           />
         </div>
 

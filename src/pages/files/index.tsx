@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, useRef, useState, type ComponentType } from 'react'
 import {
   Box,
   Paper,
@@ -36,7 +36,13 @@ import SlideshowIcon from '@mui/icons-material/Slideshow'
 import CodeIcon from '@mui/icons-material/Code'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import TopBar from '../../components/TopBar'
-import { uploadFileApiWithProgress, fetchFilesByDataApi, deleteFilesApi, ApiFile } from '../../apis/fileApi'
+import {
+  uploadFileApiChunkedWithProgress,
+  fetchFilesByDataApi,
+  deleteFilesApi,
+  ApiFile,
+  abortChunkUpload,
+} from '../../apis/fileApi'
 
 // 폴더 구조 (개인파일 > 프로그래밍/개인정보, 회사파일 > 서식/영업자료/회계자료)
 type FolderNode = {
@@ -95,9 +101,11 @@ export default function GalleryPage() {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIndexes, setSelectedIndexes] = useState<number[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
+  const uploadAbortRef = useRef<AbortController | null>(null)
 
   const toggleFolderExpand = (id: string) => {
     setExpandedFolderIds((prev) => {
@@ -274,7 +282,7 @@ export default function GalleryPage() {
     file: File,
     onProgress?: (loaded: number, total: number) => void,
   ) => {
-    await uploadFileApiWithProgress(
+    await uploadFileApiChunkedWithProgress(
       {
         file,
         menuCd: 'files',
@@ -283,9 +291,15 @@ export default function GalleryPage() {
         fileType: 0,
         description: file.name || '',
         save_path: 'file',
+        chunkSize: 8 * 1024 * 1024,
       },
       onProgress,
+      {
+        signal: uploadAbortRef.current?.signal,
+        onUploadId: (uploadId) => setActiveUploadId(uploadId),
+      },
     )
+    setActiveUploadId(null)
   }
 
   const handleUploadClick = () => {
@@ -366,6 +380,22 @@ export default function GalleryPage() {
           <Box sx={{ width: 320 }}>
             <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8, borderRadius: 1 }} />
           </Box>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={async () => {
+              uploadAbortRef.current?.abort()
+              if (activeUploadId) {
+                try {
+                  await abortChunkUpload(activeUploadId)
+                } catch {
+                  // best effort cleanup
+                }
+              }
+            }}
+          >
+            업로드 취소
+          </Button>
         </Box>
       )}
 
@@ -408,6 +438,7 @@ export default function GalleryPage() {
               try {
                 setIsUploading(true)
                 setUploadProgress(0)
+                uploadAbortRef.current = new AbortController()
                 const totalBytes = selectedFiles.reduce((acc, f) => acc + f.size, 0) || 1
                 let completedBytes = 0
 
@@ -437,10 +468,16 @@ export default function GalleryPage() {
                 setPage(0)
               } catch (error) {
                 console.error('파일 업로드 오류:', error)
-                window.alert('파일 업로드 중 오류가 발생했습니다.')
+                if (error instanceof DOMException && error.name === 'AbortError') {
+                  window.alert('업로드가 취소되었습니다.')
+                } else {
+                  window.alert('파일 업로드 중 오류가 발생했습니다.')
+                }
               } finally {
                 setIsUploading(false)
                 setUploadProgress(0)
+                setActiveUploadId(null)
+                uploadAbortRef.current = null
               }
             }}
           >

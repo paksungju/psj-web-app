@@ -80,6 +80,12 @@ export default function AppRoutes() {
       setSelectedMenu('server')
     } else if (location.pathname === '/codes' || location.pathname.startsWith('/codes/')) {
       setSelectedMenu('codes')
+    } else if (location.pathname === '/baseconfig') {
+      setSelectedMenu('baseconfig')
+    } else if (location.pathname === '/paid' || location.pathname.startsWith('/paid/')) {
+      setSelectedMenu('paid')
+    } else if (location.pathname === '/menu' || location.pathname.startsWith('/menu/')) {
+      setSelectedMenu('menus')
     }
   }, [location.pathname])
 
@@ -128,6 +134,12 @@ export default function AppRoutes() {
       navigate('/server')
     } else if (menuId === 'codes') {
       navigate('/codes')
+    } else if (menuId === 'baseconfig') {
+      navigate('/baseconfig')
+    } else if (menuId === 'paid') {
+      navigate('/paid')
+    } else if (menuId === 'menus') {
+      navigate('/menu')
     } else {
       navigate('/')
     }
@@ -137,9 +149,20 @@ export default function AppRoutes() {
     setMobileOpen((prev) => !prev)
   }
 
+  const sptInMainApp =
+    location.pathname === '/spt/cate' || location.pathname === '/spt/resources'
+
   return (
     !isAuthenticated ? (
       <AuthRoutes />
+    ) : sptInMainApp ? (
+      <AuthenticatedAppRoutes
+        selectedMenu={selectedMenu}
+        mobileOpen={mobileOpen}
+        isMobile={isMobile}
+        onMenuSelect={handleMenuSelect}
+        onMobileClose={handleDrawerToggle}
+      />
     ) : location.pathname === '/spt' || location.pathname.startsWith('/spt/') ? (
       <SptRoutes />
     ) : (

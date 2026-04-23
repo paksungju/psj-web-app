@@ -43,6 +43,8 @@ interface SidebarProps {
 type SidebarChildItem = {
   id: string
   label: string
+  /** 있으면 새 탭에서 열리는 외부 링크 */
+  href?: string
 }
 
 type SidebarMenuItem = {
@@ -62,9 +64,27 @@ const menuItems: SidebarMenuItem[] = [
   { id: 'files', label: '파일관리', icon: <FolderIcon /> },
   { id: 'profile', label: '프로필', icon: <PersonIcon /> },
   { id: 'makerplan', label: '메이커플랜', icon: <AssignmentIcon /> },
-  { id: 'my-finance', label: '마이금융', icon: <AttachMoneyIcon /> },
+  {
+    id: 'my-finance',
+    label: '마이금융',
+    icon: <AttachMoneyIcon />,
+    children: [{ id: 'my-finance-purchases', label: '구매내역' },
+      { id: 'my-finance-assets', label: '자산관리' },
+      { id: 'my-finance-subscriptions', label: '구독관리' },
+      { id: 'my-finance-expenses', label: '지출관리' }
+    ],
+  },
   { id: 'apps/info', label: '정보관리', icon: <InfoIcon /> },
-  { id: 'mails', label: '메일', icon: <MailIcon /> },
+  {
+    id: 'mails',
+    label: '메일',
+    icon: <MailIcon />,
+    children: [
+      { id: 'mail-naver', label: '네이버', href: 'https://mail.naver.com' },
+      { id: 'mail-google', label: 'Google', href: 'https://mail.google.com' },
+      { id: 'mail-daum', label: 'Daum', href: 'https://mail.daum.net' },
+    ],
+  },
   { id: 'server', label: '서버상태', icon: <StorageIcon /> },
   {
     id: 'apps',
@@ -92,7 +112,12 @@ const menuItems: SidebarMenuItem[] = [
     id: 'settings',
     label: '설정',
     icon: <SettingsIcon />,
-    children: [{ id: 'codes', label: '코드관리' }],
+    children: [
+      { id: 'codes', label: '코드관리' },
+      { id: 'baseconfig', label: '기본설정' },
+      { id: 'paid', label: '수납·결제' },
+      { id: 'menus', label: '메뉴관리' },
+    ],
   },
 ]
 
@@ -104,6 +129,7 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
     apps: true,
     spt: true,
     settings: true,
+    mails: false,
   })
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -261,8 +287,17 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
                     {item.children.map((child: SidebarChildItem) => (
                       <ListItem key={child.id} disablePadding>
                         <ListItemButton
-                          selected={selectedMenu === child.id}
-                          onClick={() => handleMenuClick(child.id)}
+                          selected={!child.href && selectedMenu === child.id}
+                          onClick={() => {
+                            if (child.href) {
+                              window.open(child.href, '_blank', 'noopener,noreferrer')
+                              if (isMobile && onMobileClose) {
+                                onMobileClose()
+                              }
+                              return
+                            }
+                            handleMenuClick(child.id)
+                          }}
                           sx={{
                             mx: 1,
                             borderRadius: 2,
@@ -306,7 +341,7 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
       {(!collapsed || isMobile) && (
         <Box sx={{ p: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            © 2024 PSJ Web App
+            © 2026 PSJ Web App
           </Typography>
         </Box>
       )}

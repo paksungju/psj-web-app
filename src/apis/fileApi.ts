@@ -91,6 +91,143 @@ export async function uploadFileApiWithProgress(
   })
 }
 
+/**
+ * 청크 분할 업로드 API
+ * 1) /init -> upload_id
+ * 2) /chunk 반복
+ * 3) /complete
+ */
+export async function uploadFileApiChunkedWithProgress(
+  params: {
+    file: File
+    menuCd?: string
+    dataId?: number
+    fileNo?: number
+    fileType?: number
+    description?: string
+    save_path?: string
+    chunkSize?: number
+  },
+  onProgress?: (loaded: number, total: number) => void,
+  options?: {
+    signal?: AbortSignal
+    onUploadId?: (uploadId: string) => void
+  },
+): Promise<UploadFileResponse> {
+  const {
+    file,
+    menuCd = 'gallery',
+    dataId = 0,
+    fileNo = 1,
+    fileType = 0,
+    description = '',
+    save_path = 'gallery',
+    chunkSize = 8 * 1024 * 1024,
+  } = params
+
+  if (options?.signal?.aborted) {
+    throw new DOMException('Upload aborted', 'AbortError')
+  }
+
+  const initRes = await fetch('http://impsj.net/api/v1/files/upload/init', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      menu_cd: menuCd,
+      data_id: dataId,
+      file_no: fileNo,
+      file_type: fileType,
+      description: description || file.name,
+      save_path,
+      filename: file.name,
+      filesize: file.size,
+      chunk_size: chunkSize,
+    }),
+  })
+  if (!initRes.ok) {
+    throw new Error('Failed to init chunk upload')
+  }
+  const initJson = (await initRes.json()) as { upload_id: string }
+  const uploadId = initJson.upload_id
+  if (!uploadId) {
+    throw new Error('Invalid upload id')
+  }
+  options?.onUploadId?.(uploadId)
+
+  const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize))
+  let loadedTotal = 0
+
+  for (let idx = 0; idx < totalChunks; idx++) {
+    if (options?.signal?.aborted) {
+      try {
+        await abortChunkUpload(uploadId)
+      } catch {
+        // best effort
+      }
+      throw new DOMException('Upload aborted', 'AbortError')
+    }
+    const start = idx * chunkSize
+    const end = Math.min(file.size, start + chunkSize)
+    const blob = file.slice(start, end)
+
+    const formData = new FormData()
+    formData.append('upload_id', uploadId)
+    formData.append('chunk_index', String(idx))
+    formData.append('chunk', blob, `${file.name}.part${idx}`)
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          const currentChunkLoaded = e.loaded
+          const aggregate = Math.min(file.size, loadedTotal + currentChunkLoaded)
+          onProgress(aggregate, file.size)
+        }
+      })
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve()
+        else reject(new Error(`Failed to upload chunk ${idx}`))
+      })
+      xhr.addEventListener('error', () => reject(new Error(`Failed to upload chunk ${idx}`)))
+      if (options?.signal) {
+        const onAbort = () => {
+          try {
+            xhr.abort()
+          } catch {
+            // noop
+          }
+          reject(new DOMException('Upload aborted', 'AbortError'))
+        }
+        options.signal.addEventListener('abort', onAbort, { once: true })
+      }
+      xhr.open('POST', 'http://impsj.net/api/v1/files/upload/chunk')
+      xhr.send(formData)
+    })
+
+    loadedTotal += blob.size
+    if (onProgress) onProgress(loadedTotal, file.size)
+  }
+
+  const completeRes = await fetch(
+    `http://impsj.net/api/v1/files/upload/complete?upload_id=${encodeURIComponent(uploadId)}&total_chunks=${totalChunks}`,
+    { method: 'POST' },
+  )
+  if (!completeRes.ok) {
+    throw new Error('Failed to complete chunk upload')
+  }
+  return (await completeRes.json()) as UploadFileResponse
+}
+
+export async function abortChunkUpload(uploadId: string): Promise<void> {
+  const response = await fetch(
+    `http://impsj.net/api/v1/files/upload/abort?upload_id=${encodeURIComponent(uploadId)}`,
+    { method: 'POST' },
+  )
+  if (!response.ok) {
+    throw new Error('Failed to abort chunk upload')
+  }
+}
+
 /** 진행률 없이 업로드 (기존 호환용) */
 export async function uploadFileApi(params: Parameters<typeof uploadFileApiWithProgress>[0]): Promise<UploadFileResponse> {
   return uploadFileApiWithProgress(params)

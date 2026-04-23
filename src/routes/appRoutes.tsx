@@ -15,6 +15,7 @@ import FavoritePage from '../pages/apps/favorite'
 import CalendarPage from '../pages/calendar'
 import GalleryPage from '../pages/gallery'
 import FilesPage from '../pages/files'
+import MenuPage from '../pages/menu'
 import MakerPlanPage from '../pages/makerplan'
 import MakerPlanFormPage from '../pages/makerplan/form'
 import MakerPlanViewPage from '../pages/makerplan/view'
@@ -30,6 +31,10 @@ import MailFormPage from '../pages/mails/mailForm'
 import MailViewPage from '../pages/mails/view'
 import ServerStatusPage from '../pages/server'
 import CodesPage from '../pages/codes'
+import BaseConfigPage from '../pages/baseconfig'
+import PaidInfoPage from '../pages/paid'
+import SptPage from '../pages/spt'
+import SptContentCatePage from '../pages/spt/contentCate'
 
 interface AppRoutesProps {
   selectedMenu: string
@@ -137,6 +142,7 @@ function AppShell({
             <Route path="/apps/calendar" element={<CalendarPage />} />
             <Route path="/apps/favorite" element={<FavoritePage />} />
             <Route path="/files" element={<FilesPage />} />
+            <Route path="/menu" element={<MenuPage />} />
             <Route path="/makerplan" element={<MakerPlanPage />} />
             <Route path="/makerplan/create" element={<MakerPlanFormPage />} />
             <Route path="/makerplan/:id/form" element={<MakerPlanFormPage />} />
@@ -146,6 +152,15 @@ function AppShell({
             <Route path="/mails/:dataId" element={<MailViewPage />} />
             <Route path="/server" element={<ServerStatusPage />} />
             <Route path="/codes" element={<CodesPage />} />
+            <Route path="/spt/cate" element={<SptContentCatePage />} />
+            <Route
+              path="/spt/resources"
+              element={
+                <SptPage title="리소스관리" description="전략기획툴 리소스관리 화면입니다." />
+              }
+            />
+            <Route path="/baseconfig" element={<BaseConfigPage />} />
+            <Route path="/paid" element={<PaidInfoPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Box>

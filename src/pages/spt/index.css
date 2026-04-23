@@ -29,9 +29,105 @@
     white-space: nowrap;
   }
 
+/* LeaderLine: path만 클릭, 드래그 블록(row.zindex)보다 아래에 깔림 */
 .leader-line {
+  pointer-events: none !important;
   z-index: 0 !important;
-  pointer-events: auto;
+}
+.leader-line .leader-line-line-path,
+.leader-line .leader-line-caps-mask-line {
+  pointer-events: stroke !important;
+  cursor: pointer !important;
+}
+
+.tiptap-content {
+  min-height: 180px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 10px;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tiptap-content p {
+  margin: 0 0 8px 0;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px;
+  border-bottom: 1px solid #edf1f5;
+  background: #fafcff;
+}
+
+.editor-tool-btn {
+  border: 1px solid #d9e1ec;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.editor-tool-btn:hover {
+  background: #f1f5f9;
+  border-color: #c8d4e3;
+}
+
+.editor-tool-btn.is-active {
+  background: #1976d2;
+  border-color: #1976d2;
+  color: #fff;
+}
+
+.editor-color-wrap {
+  position: relative;
+}
+
+.editor-color-palette {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  padding: 10px;
+  border: 1px solid #d9e1ec;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+}
+
+.editor-color-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.editor-color-chip {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  cursor: pointer;
+}
+
+.editor-color-chip.is-active {
+  outline: 2px solid #1976d2;
+  outline-offset: 1px;
+}
+
+.editor-color-actions {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 
