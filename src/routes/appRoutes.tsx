@@ -12,7 +12,8 @@ import HomeScreen from '../components/HomeScreen'
 import ChatPage from '../pages/chating/index'
 import MemoPage from '../pages/apps/memo'
 import FavoritePage from '../pages/apps/favorite'
-import CalendarPage from '../pages/calendar'
+import SchedulePage from '../pages/schedule'
+import ScheduleCalendarPage from '../pages/schedule/calendar'
 import GalleryPage from '../pages/gallery'
 import FilesPage from '../pages/files'
 import MenuPage from '../pages/menu'
@@ -35,6 +36,9 @@ import BaseConfigPage from '../pages/baseconfig'
 import PaidInfoPage from '../pages/paid'
 import SptPage from '../pages/spt'
 import SptContentCatePage from '../pages/spt/contentCate'
+import TrainingPage from '../pages/training'
+import TrainingFormPage from '../pages/training/form'
+import TrainingViewPage from '../pages/training/view'
 
 interface AppRoutesProps {
   selectedMenu: string
@@ -139,7 +143,9 @@ function AppShell({
             <Route path="/apps/info/:id" element={<AppInfoViewPage />} />
             <Route path="/app-info/:app_id/form" element={<AppInfoFormPage />} />
             <Route path="/apps/memo" element={<MemoPage />} />
-            <Route path="/apps/calendar" element={<CalendarPage />} />
+            <Route path="/apps/calendar" element={<ScheduleCalendarPage />} />
+            <Route path="/schedule" element={<SchedulePage />} />
+            <Route path="/schedule/calendar" element={<ScheduleCalendarPage />} />
             <Route path="/apps/favorite" element={<FavoritePage />} />
             <Route path="/files" element={<FilesPage />} />
             <Route path="/menu" element={<MenuPage />} />
@@ -161,6 +167,10 @@ function AppShell({
             />
             <Route path="/baseconfig" element={<BaseConfigPage />} />
             <Route path="/paid" element={<PaidInfoPage />} />
+            <Route path="/training" element={<TrainingPage />} />
+            <Route path="/training/form" element={<TrainingFormPage />} />
+            <Route path="/training/:id" element={<TrainingViewPage />} />
+            <Route path="/training/:id/form" element={<TrainingFormPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Box>

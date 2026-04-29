@@ -323,7 +323,7 @@ export default function MakerPlanPage() {
                     })()}
                   </TableCell>
                   <TableCell
-                    sx={{ color: 'text.secondary' }}
+                    sx={{ color: '#0b1f5e', fontWeight: 700 }}
                     onClick={() => navigate(`/makerplan/${step.id}`)}
                   >
                     {step.label}
@@ -363,6 +363,7 @@ export default function MakerPlanPage() {
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 3, mb: 2 }}>
           <Button
+            size="small"
             variant="contained"
             color="primary"
             onClick={() => navigate('/makerplan/create', { state: { returnTo: '/makerplan' } })}
@@ -370,6 +371,7 @@ export default function MakerPlanPage() {
             등록하기
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="inherit"
             onClick={handleDeleteSelected}

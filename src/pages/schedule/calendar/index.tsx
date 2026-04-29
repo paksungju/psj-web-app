@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Box, Paper, Typography, Button, Dialog, DialogTitle, DialogContent, TextField } from '@mui/material'
-import { fetchAppDataListApi, createAppDataApi, updateAppDataApi, type ApiAppPayload } from '../../apis/appApi'
+import { Box, Paper, Typography, Button, Dialog, DialogTitle, DialogContent, TextField, MenuItem } from '@mui/material'
+import { fetchAppDataListApi, createAppDataApi, updateAppDataApi, type ApiAppPayload } from '../../../apis/appApi'
+import { fetchCodesByParentApi } from '../../../apis/codesApi'
 
 const CALENDAR_APP_ID = 6
 
@@ -21,6 +22,8 @@ interface Schedule {
   status: ScheduleStatus
   location?: string
   attendees?: string[]
+  progressCode?: string
+  importantCode?: string
 }
 
 /** YYYYMMDD(8자) → YYYY-MM-DD 변환 (DB VARCHAR(8) 저장 형식) */
@@ -41,6 +44,8 @@ function appDataToSchedule(item: {
   start_time?: string | null
   end_time?: string | null
   extra_1?: string | null
+  extra_2?: string | null
+  extra_3?: string | null
 }): Schedule {
   const category = (item.extra_1 as ScheduleCategory) || 'task'
   return {
@@ -54,6 +59,8 @@ function appDataToSchedule(item: {
     category,
     priority: 'medium',
     status: 'scheduled',
+    progressCode: item.extra_2 ?? '',
+    importantCode: item.extra_3 ?? '',
   }
 }
 
@@ -124,6 +131,10 @@ export default function CalendarPage() {
   const [popupEndDate, setPopupEndDate] = useState('')
   const [popupTitle, setPopupTitle] = useState('')
   const [popupContent, setPopupContent] = useState('')
+  const [popupProgressCode, setPopupProgressCode] = useState('')
+  const [popupImportantCode, setPopupImportantCode] = useState('')
+  const [progressOptions, setProgressOptions] = useState<Array<{ codeCd: string; codeNm: string }>>([])
+  const [importantOptions, setImportantOptions] = useState<Array<{ codeCd: string; codeNm: string }>>([])
 
   useEffect(() => {
     if (popupRange && !popupEditingSchedule) {
@@ -131,6 +142,8 @@ export default function CalendarPage() {
       setPopupEndDate(popupRange.end)
       setPopupTitle('')
       setPopupContent('')
+      setPopupProgressCode('')
+      setPopupImportantCode('')
     }
   }, [popupRange, popupEditingSchedule])
 
@@ -142,7 +155,29 @@ export default function CalendarPage() {
     setPopupEndDate(schedule.endDate)
     setPopupTitle(schedule.title)
     setPopupContent(schedule.description)
+    setPopupProgressCode(schedule.progressCode ?? '')
+    setPopupImportantCode(schedule.importantCode ?? '')
     setPopupOpen(true)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [progressRes, importantRes] = await Promise.all([
+          fetchCodesByParentApi('progressCode'),
+          fetchCodesByParentApi('importantCode'),
+        ])
+        if (cancelled) return
+        setProgressOptions(progressRes.items.map((row) => ({ codeCd: row.code_cd, codeNm: row.code_nm ?? row.code_cd })))
+        setImportantOptions(importantRes.items.map((row) => ({ codeCd: row.code_cd, codeNm: row.code_nm ?? row.code_cd })))
+      } catch (e) {
+        console.error('코드 목록 로드 실패:', e)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const selectedStart = dragStart && dragEnd ? (dragStart <= dragEnd ? dragStart : dragEnd) : dragStart
@@ -287,13 +322,14 @@ export default function CalendarPage() {
             backgroundColor: '#f9fafb',
           }}
         >
-          {weekdays.map((day) => (
+          {weekdays.map((day, dayIndex) => (
             <div
               key={day}
               style={{
                 padding: '0.75rem',
                 textAlign: 'center',
                 fontWeight: 600,
+                color: dayIndex === 0 ? '#d32f2f' : dayIndex === 6 ? '#1976d2' : '#374151',
                 borderRight: '1px solid #e5e7eb',
                 borderBottom: '1px solid #e5e7eb',
               }}
@@ -313,6 +349,7 @@ export default function CalendarPage() {
           }}
         >
           {calendarDays.map((dayData, index) => {
+            const dayOfWeek = index % 7
             const isSelected =
               dayData &&
               selectedStart &&
@@ -353,7 +390,11 @@ export default function CalendarPage() {
                         : new Date(dayData.dateStr).toDateString() ===
                             new Date().toDateString()
                           ? '#3b82f6'
-                          : '#374151',
+                          : dayOfWeek === 0
+                            ? '#d32f2f'
+                            : dayOfWeek === 6
+                              ? '#1976d2'
+                              : '#374151',
                     }}
                   >
                     {dayData.day}
@@ -762,31 +803,34 @@ export default function CalendarPage() {
           fullWidth
           PaperProps={{ sx: { borderRadius: 2 } }}
         >
-          <DialogTitle sx={{ pb: 0 }}>
+          <DialogTitle sx={{ pb: 1.5 }}>
             {popupEditingSchedule ? '일정 수정' : '새 일정 등록'}
           </DialogTitle>
-          <DialogContent sx={{ pt: 2 }}>
+          <DialogContent sx={{ pt: 3.5 }}>
             {(popupRange || popupEditingSchedule) && (
               <>
-                <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ mb: 2, mt: 1, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                   <TextField
+                    size="small"
                     label="시작일"
                     type="date"
                     value={popupStartDate}
                     onChange={(e) => setPopupStartDate(e.target.value)}
                     InputLabelProps={{ shrink: true }}
-                    sx={{ flex: 1, minWidth: 140 }}
+                    sx={{ flex: 1, minWidth: 180 }}
                   />
                   <TextField
+                    size="small"
                     label="종료일"
                     type="date"
                     value={popupEndDate}
                     onChange={(e) => setPopupEndDate(e.target.value)}
                     InputLabelProps={{ shrink: true }}
-                    sx={{ flex: 1, minWidth: 140 }}
+                    sx={{ flex: 1, minWidth: 180 }}
                   />
                 </Box>
                 <TextField
+                  size="small"
                   label="제목"
                   fullWidth
                   value={popupTitle}
@@ -804,8 +848,43 @@ export default function CalendarPage() {
                   placeholder="일정 내용을 입력하세요"
                   sx={{ mb: 2 }}
                 />
+                <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <TextField
+                    select
+                    size="small"
+                    label="진행상태"
+                    value={popupProgressCode}
+                    onChange={(e) => setPopupProgressCode(e.target.value)}
+                    sx={{ flex: 1, minWidth: 180 }}
+                  >
+                    <MenuItem value="">선택 안함</MenuItem>
+                    {progressOptions.map((opt) => (
+                      <MenuItem key={opt.codeCd} value={opt.codeCd}>
+                        {opt.codeNm}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <TextField
+                    select
+                    size="small"
+                    label="중요도"
+                    value={popupImportantCode}
+                    onChange={(e) => setPopupImportantCode(e.target.value)}
+                    sx={{ flex: 1, minWidth: 180 }}
+                  >
+                    <MenuItem value="">선택 안함</MenuItem>
+                    {importantOptions.map((opt) => (
+                      <MenuItem key={opt.codeCd} value={opt.codeCd}>
+                        {opt.codeNm}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                  <Button onClick={() => setPopupOpen(false)}>취소</Button>
+                  <Button 
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setPopupOpen(false)}>닫기</Button>
                   <Button
                     variant="contained"
                     onClick={async () => {
@@ -821,6 +900,8 @@ export default function CalendarPage() {
                         start_time: '09:00',
                         end_time: '18:00',
                         extra_1: popupEditingSchedule?.category ?? 'task',
+                        extra_2: popupProgressCode,
+                        extra_3: popupImportantCode,
                       } as ApiAppPayload
                       const strKeys: (keyof ApiAppPayload)[] = [
                         'cate1', 'cate2', 'ap_subject', 'ap_content', 'recv_mail', 'link1', 'link2',
@@ -861,6 +942,8 @@ export default function CalendarPage() {
                             end_date: end,
                             start_time: '09:00',
                             end_time: '18:00',
+                            extra_2: popupProgressCode,
+                            extra_3: popupImportantCode,
                           })
                           setSchedules((prev) =>
                             prev.map((s) => (s.id === popupEditingSchedule.id ? updated : s)),
@@ -873,6 +956,8 @@ export default function CalendarPage() {
                             end_date: end,
                             start_time: '09:00',
                             end_time: '18:00',
+                            extra_2: popupProgressCode,
+                            extra_3: popupImportantCode,
                           })
                           setSchedules((prev) => [...prev, newSchedule])
                         }
@@ -881,6 +966,8 @@ export default function CalendarPage() {
                         setPopupEditingSchedule(null)
                         setPopupTitle('')
                         setPopupContent('')
+                        setPopupProgressCode('')
+                        setPopupImportantCode('')
                       } catch (e) {
                         console.error('일정 저장 실패:', e)
                         alert(e instanceof Error ? e.message : '일정 저장에 실패했습니다.')

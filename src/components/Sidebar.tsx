@@ -92,10 +92,19 @@ const menuItems: SidebarMenuItem[] = [
     icon: <AppsIcon />,
     children: [
       { id: 'memo', label: '메모장' },
-      { id: 'calendar', label: '캘린더' },
       { id: 'apps-accounts', label: '계정' },
       { id: 'webapps', label: '웹앱' },
       { id: 'app/configs', label: '앱설정' },
+    ],
+  },
+  {
+    id: 'todo',
+    label: '일정관리',
+    icon: <AssignmentIcon />,
+    children: [
+      { id: 'todo-list', label: '할일목록' },
+      { id: 'calendar', label: '캘린더' },
+      { id: 'training', label: '수련일지' },
     ],
   },
   {

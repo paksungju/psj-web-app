@@ -55,7 +55,12 @@ export default function AppRoutes() {
       setSelectedMenu('apps/info')
     } else if (location.pathname === '/apps/memo' || location.pathname.startsWith('/apps/memo/')) {
       setSelectedMenu('memo')
-    } else if (location.pathname === '/apps/calendar' || location.pathname.startsWith('/apps/calendar/')) {
+    } else if (
+      location.pathname === '/apps/calendar' ||
+      location.pathname.startsWith('/apps/calendar/') ||
+      location.pathname === '/schedule/calendar' ||
+      location.pathname.startsWith('/schedule/calendar/')
+    ) {
       setSelectedMenu('calendar')
     } else if (location.pathname === '/apps/favorite' || location.pathname.startsWith('/apps/favorite/')) {
       setSelectedMenu('favorite')
@@ -68,6 +73,10 @@ export default function AppRoutes() {
       setSelectedMenu('files')
     } else if (location.pathname === '/makerplan' || location.pathname.startsWith('/makerplan/')) {
       setSelectedMenu('makerplan')
+    } else if (location.pathname === '/schedule' || location.pathname.startsWith('/schedule/')) {
+      setSelectedMenu('todo-list')
+    } else if (location.pathname === '/training' || location.pathname.startsWith('/training/')) {
+      setSelectedMenu('training')
     } else if (location.pathname === '/mails' || location.pathname.startsWith('/mails/')) {
       setSelectedMenu('mails')
     } else if (location.pathname === '/spt') {
@@ -115,7 +124,11 @@ export default function AppRoutes() {
     } else if (menuId === 'memo') {
       navigate('/apps/memo')
     } else if (menuId === 'calendar') {
-      navigate('/apps/calendar')
+      navigate('/schedule/calendar')
+    } else if (menuId === 'todo-list') {
+      navigate('/schedule')
+    } else if (menuId === 'training') {
+      navigate('/training')
     } else if (menuId === 'favorite') {
       navigate('/apps/favorite')
     } else if (menuId === 'files') {
