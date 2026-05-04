@@ -537,15 +537,33 @@ export default function MakerPlanFormPage() {
         }
       }
       const shouldCreateStep = !isBodyForm && Number(form.parent_id ?? 0) > 0 && selectedStepDataId == null
+      let viewDataId: number | undefined
       if (selectedStepDataId != null) {
         await updateAppDataApi(selectedStepDataId, payload)
+        viewDataId = rootDataId && rootDataId > 0 ? rootDataId : dataId
       } else if (isCreate || shouldCreateStep || (isReply && form.parent_id)) {
         const apiParams = Number(form.parent_id ?? 0) > 0 ? { reply: 1 } : undefined
-        await createAppDataApi(payload, apiParams)
+        const created = await createAppDataApi(payload, apiParams)
+        const createdId = created.data_id
+        const parentId = Number(created.parent_id ?? form.parent_id ?? 0)
+        if (isBodyEntry(created)) {
+          viewDataId = createdId
+        } else if (rootDataId && rootDataId > 0) {
+          viewDataId = rootDataId
+        } else if (parentId > 0) {
+          viewDataId = parentId
+        } else {
+          viewDataId = createdId
+        }
       } else {
         await updateAppDataApi(dataId, payload)
+        viewDataId = rootDataId && rootDataId > 0 ? rootDataId : dataId
       }
-      navigate('/makerplan')
+      if (viewDataId != null && viewDataId > 0) {
+        navigate(`/makerplan/${viewDataId}`)
+      } else {
+        navigate('/makerplan')
+      }
     } catch (e) {
       console.error(e)
       alert(e instanceof Error ? e.message : '저장에 실패했습니다.')

@@ -23,10 +23,139 @@ import CloseIcon from '@mui/icons-material/Close'
 import TopBar from '../../components/TopBar'
 import { fetchAppDataByIdApi, fetchAppDataListApi, type ApiAppData } from '../../apis/appApi'
 
-/** ap_content HTML 내 이미지 src에 도메인 추가 */
+function isAbsoluteWebHref(href: string): boolean {
+  const t = href.trim()
+  if (/^javascript:/i.test(t)) return false
+  return /^https?:\/\//i.test(t) || /^\/\//.test(t)
+}
+
+function shouldSkipLinkifyTextAncestors(el: Element | null): boolean {
+  let p: Element | null = el
+  while (p) {
+    const tag = p.tagName
+    if (tag === 'A' || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'PRE' || tag === 'CODE' || tag === 'TEXTAREA' || tag === 'NOSCRIPT') {
+      return true
+    }
+    p = p.parentElement
+  }
+  return false
+}
+
+function isValidHttpUrlForLink(href: string): boolean {
+  try {
+    const u = new URL(href)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/** 문장 속 평문 http(s) URL을 링크로 감쌈 (이미 a 태그 안·코드 블록 등은 제외) */
+function linkifyPlainWebUrlsInHtml(html: string): string {
+  if (!html || typeof document === 'undefined') return html
+
+  const trimUrlTail = (raw: string): { href: string; tail: string } => {
+    let href = raw
+    while (href.length > 0) {
+      const c = href[href.length - 1]
+      if (c === ')' || c === ']' || c === '}' || c === '>' || c === '"' || c === "'" || c === '.' || c === ',' || c === ';') {
+        href = href.slice(0, -1)
+        continue
+      }
+      break
+    }
+    return { href, tail: raw.slice(href.length) }
+  }
+
+  const replaceTextNodeUrls = (textNode: Text) => {
+    const text = textNode.data
+    const parent = textNode.parentNode
+    if (!parent || !/https?:\/\//i.test(text)) return
+
+    const frag = document.createDocumentFragment()
+    let lastIndex = 0
+    let matched = false
+    const re = /https?:\/\/[^\s<>"']+/gi
+    let m: RegExpExecArray | null
+    while ((m = re.exec(text)) !== null) {
+      matched = true
+      const raw = m[0]
+      const start = m.index
+      if (start > lastIndex) frag.appendChild(document.createTextNode(text.slice(lastIndex, start)))
+      const { href, tail } = trimUrlTail(raw)
+      if (isValidHttpUrlForLink(href)) {
+        const a = document.createElement('a')
+        a.href = href
+        a.textContent = href
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        frag.appendChild(a)
+      } else {
+        frag.appendChild(document.createTextNode(raw))
+      }
+      if (tail) frag.appendChild(document.createTextNode(tail))
+      lastIndex = start + raw.length
+    }
+    if (!matched) return
+    if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)))
+    if (frag.childNodes.length === 0) return
+    parent.replaceChild(frag, textNode)
+  }
+
+  const template = document.createElement('template')
+  template.innerHTML = html
+
+  const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const el = node.parentElement
+      if (!el || shouldSkipLinkifyTextAncestors(el)) return NodeFilter.FILTER_REJECT
+      const t = node.textContent ?? ''
+      if (!/https?:\/\//i.test(t)) return NodeFilter.FILTER_REJECT
+      return NodeFilter.FILTER_ACCEPT
+    },
+  })
+
+  const batch: Text[] = []
+  let n: Node | null
+  while ((n = walker.nextNode())) batch.push(n as Text)
+  for (const textNode of batch) replaceTextNodeUrls(textNode)
+
+  return template.innerHTML
+}
+
+/** http(s) 링크는 새 창(탭)에서 열리도록 target/rel 보강 */
+function processAnchorOpenInNewTab(html: string): string {
+  return html.replace(/<a\b([^>]*)>/gi, (_full, attrs: string) => {
+    const hrefMatch = attrs.match(/\bhref\s*=\s*(["'])([^"']*)\1/i)
+    if (!hrefMatch) return `<a${attrs}>`
+    const href = hrefMatch[2] ?? ''
+    if (!isAbsoluteWebHref(href)) return `<a${attrs}>`
+
+    let newAttrs = attrs.trim()
+    if (/\btarget\s*=/i.test(newAttrs)) {
+      newAttrs = newAttrs.replace(/\btarget\s*=\s*(["'])[^"']*\1/gi, 'target="_blank"')
+    } else {
+      newAttrs = `${newAttrs} target="_blank"`
+    }
+    if (/\brel\s*=/i.test(newAttrs)) {
+      newAttrs = newAttrs.replace(/\brel\s*=\s*(["'])([^"']*)\1/gi, (_m, q: string, relVal: string) => {
+        const parts = relVal.split(/\s+/).filter(Boolean)
+        if (!parts.includes('noopener')) parts.push('noopener')
+        if (!parts.includes('noreferrer')) parts.push('noreferrer')
+        return `rel=${q}${parts.join(' ')}${q}`
+      })
+    } else {
+      newAttrs = `${newAttrs} rel="noopener noreferrer"`
+    }
+    return `<a ${newAttrs}>`
+  })
+}
+
+/** ap_content HTML: 평문 URL 링크화, 이미지 src 보정, 웹 주소 링크는 새 창으로 */
 function processContentHtml(html: string): string {
   if (!html) return ''
-  return html.replace(
+  const linked = linkifyPlainWebUrlsInHtml(html)
+  const withImg = linked.replace(
     /<img([^>]*)\ssrc=["']([^"']+)["']/gi,
     (match, attrs: string, src: string) => {
       if (src.startsWith('http')) return match
@@ -34,6 +163,7 @@ function processContentHtml(html: string): string {
       return `<img${attrs} src="http://impsj.net${path}"`
     },
   )
+  return processAnchorOpenInNewTab(withImg)
 }
 
 const STEP_ITEMS = [
