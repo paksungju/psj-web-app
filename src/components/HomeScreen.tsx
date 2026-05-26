@@ -7,6 +7,7 @@ import CalendarPage from '../pages/schedule/calendar'
 import TopBar from './TopBar'
 import { createAppDataApi, deleteAppDataApi, fetchAppDataListApi, type ApiAppData, type ApiAppPayload, updateAppDataApi } from '../apis/appApi'
 import { fetchCodesByParentApi } from '../apis/codesApi'
+import { randomUUID } from '../utils/randomUUID'
 
 interface HomeScreenProps {
   selectedMenu: string
@@ -114,6 +115,8 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
   const [memoModalMode, setMemoModalMode] = useState<'edit' | 'delete' | null>(null)
   const [memoEditContent, setMemoEditContent] = useState('')
 
+
+  // 할일 목록 조회
   const loadTodos = async () => {
     const [items, progressCodes, importantCodes] = await Promise.all([
       fetchAppDataListApi({ app_id: TODO_APP_ID, skip: 0, limit: 200 }),
@@ -173,6 +176,8 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
   }, [])
 
   const days = useMemo(() => buildCalendarDays(baseDate), [baseDate])
+
+  // 캘린더 캘린더 날짜 필터링
   const visibleTodoRows = useMemo(() => {
     if (!selectedDateKey) return todoRows
     return todoRows.filter((row) => {
@@ -189,6 +194,8 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
       }),
     [todoRows, progressCodeMap],
   )
+
+
   const todoImportanceByDate = useMemo(() => {
     const map = new Map<string, string[]>()
     for (const row of todoRows) {
@@ -317,6 +324,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
         app_id: MEMO_APP_ID,
         ap_subject: text,
         ap_content: text,
+        extra_1: randomUUID(),
       })
       await createAppDataApi(payload)
       setMemoInput('')

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Virtuoso } from 'react-virtuoso'
 import {
   Box,
@@ -32,6 +32,9 @@ import {
   type ApiAppData,
   type ApiAppPayload,
 } from '../../../apis/appApi'
+import { randomUUID } from '../../../utils/randomUUID'
+
+const MEMO_SESSION_KEY = 'memo_session_id'
 
 interface ChatMessage {
   id: number
@@ -140,6 +143,8 @@ function MessageContent({ text, isMe }: { text: string; isMe: boolean }) {
   )
 }
 
+const MEMO_APP_ID = 1
+
 const initialMessages: ChatMessage[] = [
   {
     id: 1,
@@ -154,6 +159,239 @@ const initialMessages: ChatMessage[] = [
     time: '09:01',
   },
 ]
+
+function appDataToChatMessage(item: ApiAppData, idx: number): ChatMessage {
+  const created = item.regist_dt ?? item.update_dt ?? new Date().toISOString()
+  const createdDate = new Date(created)
+  const time = `${createdDate.getHours().toString().padStart(2, '0')}:${createdDate.getMinutes().toString().padStart(2, '0')}`
+  const text = [item.ap_content].filter(Boolean).join('\n') || '-'
+  const id = item.data_id != null ? item.data_id : 1000000 + idx
+  return {
+    id,
+    author: item.user_nm ? 'me' : 'bot',
+    text,
+    time,
+  }
+}
+
+function getMemoTitle(row: ApiAppData): string {
+  const subject = row.ap_subject?.trim()
+  if (subject) return subject.length > 48 ? `${subject.slice(0, 48)}…` : subject
+  const content = row.ap_content?.trim()
+  if (content) {
+    const first = content.split('\n')[0]?.trim() || content
+    return first.length > 48 ? `${first.slice(0, 48)}…` : first
+  }
+  return '제목 없음'
+}
+
+/** 채팅 session_id 와 동일 — 메모 스레드 식별자(extra_1) */
+interface MemoSessionItem {
+  session_id: string
+  title: string
+  message_count: number
+  last_id: number
+}
+
+function getMemoSessionId(row: ApiAppData): string {
+  const sid = row.extra_1?.trim()
+  if (sid) return sid
+  return `__legacy_${row.data_id ?? 0}`
+}
+
+function buildMemoSessions(rows: ApiAppData[]): MemoSessionItem[] {
+  const groups = new Map<string, ApiAppData[]>()
+  for (const row of rows) {
+    const sid = getMemoSessionId(row)
+    const list = groups.get(sid) ?? []
+    list.push(row)
+    groups.set(sid, list)
+  }
+  const sessions: MemoSessionItem[] = []
+  for (const [session_id, items] of groups) {
+    const sorted = [...items].sort((a, b) => (a.data_id ?? 0) - (b.data_id ?? 0))
+    const first = sorted[0]
+    const last = sorted[sorted.length - 1]
+    sessions.push({
+      session_id,
+      title: first ? getMemoTitle(first) : '제목 없음',
+      message_count: sorted.length,
+      last_id: last?.data_id ?? 0,
+    })
+  }
+  sessions.sort((a, b) => b.last_id - a.last_id)
+  return sessions
+}
+
+const PlusIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+)
+
+const MemoListIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+)
+
+interface MemoTitleSidebarProps {
+  sessions: MemoSessionItem[]
+  serverSessionCount: number
+  currentSessionId: string
+  listLoading: boolean
+  onSelectSession: (sessionId: string) => void
+  onNewMemo: () => void
+  onCloseMobile?: () => void
+}
+
+/** 채팅 왼쪽 세션 목록과 동일 — extra_1(UUID) 기준 분류 */
+function MemoTitleSidebar({
+  sessions,
+  serverSessionCount,
+  currentSessionId,
+  listLoading,
+  onSelectSession,
+  onNewMemo,
+  onCloseMobile,
+}: MemoTitleSidebarProps) {
+  return (
+    <div
+      style={{
+        width: 280,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#f3f4f6',
+        borderRight: '1px solid #e5e7eb',
+        height: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
+        borderRadius: '8px 0 0 8px',
+      }}
+    >
+      <div style={{ padding: '16px 14px 12px', borderBottom: '1px solid #e5e7eb' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', letterSpacing: '0.02em' }}>
+            메모 목록
+          </div>
+          {onCloseMobile && (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              aria-label="목록 닫기"
+              style={{
+                border: 'none',
+                background: '#e5e7eb',
+                borderRadius: 8,
+                padding: '4px 10px',
+                fontSize: 12,
+                color: '#374151',
+                cursor: 'pointer',
+              }}
+            >
+              닫기
+            </button>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onNewMemo()
+            onCloseMobile?.()
+          }}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 7,
+            background: '#4f46e5',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 10,
+            padding: '9px 14px',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          <PlusIcon /> 새 메모
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 8px' }}>
+        {listLoading && serverSessionCount === 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}>
+            <CircularProgress size={18} sx={{ color: '#9ca3af' }} />
+          </div>
+        )}
+        {!listLoading && serverSessionCount === 0 && sessions.length === 0 && (
+          <div style={{ padding: '12px 8px', fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 1.5 }}>
+            저장된 메모가 없습니다.
+            <br />
+            <span style={{ fontSize: 11 }}>메시지를 내면 목록에 반영됩니다.</span>
+          </div>
+        )}
+        {sessions.map((s) => {
+          const isActive = s.session_id === currentSessionId
+          return (
+            <button
+              key={s.session_id}
+              type="button"
+              onClick={() => {
+                onSelectSession(s.session_id)
+                onCloseMobile?.()
+              }}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                border: 'none',
+                borderRadius: 8,
+                padding: '9px 10px',
+                marginBottom: 2,
+                cursor: 'pointer',
+                background: isActive ? '#ede9fe' : 'transparent',
+                transition: 'background 0.12s',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: isActive ? '#4f46e5' : '#9ca3af', flexShrink: 0 }}>
+                  <MemoListIcon />
+                </span>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? '#3730a3' : '#374151',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {s.title || '새 메모'}
+                </span>
+              </div>
+              <div style={{ paddingLeft: 20, fontSize: 11, color: '#9ca3af' }}>
+                {s.message_count}건 · #{s.session_id.slice(0, 6)}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ borderTop: '1px solid #e5e7eb', padding: '10px 14px', fontSize: 11, color: '#9ca3af' }}>
+        {serverSessionCount}개 스레드
+        {currentSessionId ? ` · #${currentSessionId.slice(0, 8)}` : ''}
+      </div>
+    </div>
+  )
+}
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
@@ -173,6 +411,101 @@ export default function ChatPage() {
   const [editingDraft, setEditingDraft] = useState('')
   /** 링크 iframe 미리보기 열린 URL */
   const [previewLinkUrl, setPreviewLinkUrl] = useState<string | null>(null)
+  /** 왼쪽 제목 목록 (extra_1 = 세션 UUID) */
+  const [memos, setMemos] = useState<ApiAppData[]>([])
+  const [memoSessionId, setMemoSessionId] = useState<string>(() => {
+    if (typeof localStorage === 'undefined') return ''
+    return localStorage.getItem(MEMO_SESSION_KEY) ?? ''
+  })
+  const [listLoading, setListLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window !== 'undefined' ? !window.matchMedia('(max-width: 900px)').matches : true,
+  )
+  const [isNarrow, setIsNarrow] = useState(false)
+
+  const memoSessions = useMemo(() => buildMemoSessions(memos), [memos])
+
+  /** DB에 없는 새 메모 스레드는 맨 위 가상 행 (채팅 displaySessions 와 동일) */
+  const displaySessions = useMemo((): MemoSessionItem[] => {
+    const hasCurrent = memoSessions.some((s) => s.session_id === memoSessionId)
+    const firstUser = messages.find((m) => m.author === 'me')?.text?.trim() || ''
+    const draftTitle = firstUser
+      ? (firstUser.length > 52 ? `${firstUser.slice(0, 52)}…` : firstUser)
+      : '새 메모'
+    if (memoSessionId && !hasCurrent) {
+      const phantom: MemoSessionItem = {
+        session_id: memoSessionId,
+        title: draftTitle,
+        message_count: Math.max(messages.length, 0),
+        last_id: 0,
+      }
+      return [phantom, ...memoSessions]
+    }
+    return memoSessions
+  }, [memoSessions, memoSessionId, messages])
+
+  const activeMemoTitle = useMemo(() => {
+    const row = displaySessions.find((s) => s.session_id === memoSessionId)
+    return row?.title?.trim() || '새 메모'
+  }, [displaySessions, memoSessionId])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)')
+    const apply = () => {
+      const n = mq.matches
+      setIsNarrow(n)
+      if (!n) setSidebarOpen(true)
+    }
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  const applyMessagesForSession = useCallback((rows: ApiAppData[], sessionId: string) => {
+    if (!sessionId) {
+      setMessages([])
+      return
+    }
+    const inSession = rows
+      .filter((r) => getMemoSessionId(r) === sessionId)
+      .sort((a, b) => (a.data_id ?? 0) - (b.data_id ?? 0))
+    if (inSession.length === 0) {
+      setMessages([])
+      return
+    }
+    setMessages(inSession.map((row, idx) => appDataToChatMessage(row, idx)))
+  }, [])
+
+  const loadMemoList = useCallback(async () => {
+    setListLoading(true)
+    try {
+      const data = await fetchAppDataListApi({ skip: 0, limit: 100, app_id: MEMO_APP_ID })
+      const sorted = [...(data ?? [])].sort((a, b) => (b.data_id ?? 0) - (a.data_id ?? 0))
+      setMemos(sorted)
+      return sorted
+    } catch (error) {
+      console.error('메모 목록 조회 오류:', error)
+      setMemos([])
+      return [] as ApiAppData[]
+    } finally {
+      setListLoading(false)
+    }
+  }, [])
+
+  const handleSelectSession = useCallback((sessionId: string) => {
+    if (sessionId === memoSessionId) return
+    localStorage.setItem(MEMO_SESSION_KEY, sessionId)
+    setMemoSessionId(sessionId)
+    applyMessagesForSession(memos, sessionId)
+  }, [memoSessionId, memos, applyMessagesForSession])
+
+  const handleNewMemo = useCallback(() => {
+    const sid = randomUUID()
+    localStorage.setItem(MEMO_SESSION_KEY, sid)
+    setMemoSessionId(sid)
+    setMessages([])
+    setInput('')
+  }, [])
 
   useEffect(() => {
     const urls = new Set<string>()
@@ -197,61 +530,50 @@ export default function ChatPage() {
     })
   }, [messages])
 
-  // 앱 데이터 목록을 조회해서 말풍선에 표시
+  // 앱 데이터 목록 → extra_1 세션 목록 + 선택 스레드 말풍선
   useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const data = await fetchAppDataListApi({ skip: 0, limit: 100, app_id: 1 })
-        const serverMessages: ChatMessage[] = (data ?? []).map((item: ApiAppData, idx: number) => {
-          const created = item.regist_dt ?? item.update_dt ?? new Date().toISOString()
-          const createdDate = new Date(created)
-          const time = `${createdDate.getHours().toString().padStart(2, '0')}:${createdDate.getMinutes().toString().padStart(2, '0')}`
-          // item.ap_subject, 
-          const text = [item.ap_content].filter(Boolean).join('\n') || '-'
-          // data_id가 없거나 중복될 수 있으므로 고유 id 보장 (data_id 우선, 없으면 1000000+idx)
-          const id = item.data_id != null ? item.data_id : 1000000 + idx
-          return {
-            id,
-            author: item.user_nm ? 'me' : 'bot',
-            text,
-            time,
-          }
-        })
-        if (serverMessages.length > 0) {
-          setMessages(serverMessages)
+    void (async () => {
+      const sorted = await loadMemoList()
+      const sessions = buildMemoSessions(sorted)
+      if (sessions.length === 0) {
+        if (!memoSessionId) {
+          const sid = randomUUID()
+          localStorage.setItem(MEMO_SESSION_KEY, sid)
+          setMemoSessionId(sid)
         }
-      } catch (error) {
-        console.error('앱 데이터 목록 조회 오류:', error)
+        setMessages([])
+        return
       }
-    }
-
-    fetchMessages()
-  }, [])
+      const stored = localStorage.getItem(MEMO_SESSION_KEY) ?? ''
+      const pick =
+        (stored && sessions.some((s) => s.session_id === stored) ? stored : null) ??
+        sessions[0]?.session_id ??
+        ''
+      if (pick) {
+        localStorage.setItem(MEMO_SESSION_KEY, pick)
+        setMemoSessionId(pick)
+        applyMessagesForSession(sorted, pick)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadMemoList])
 
   const askOllama = async () => {
     const trimmed = input.trim()
     if (!trimmed) return
 
-    const now = new Date()
-    const time = `${now.getHours().toString().padStart(2, '0')}:${now
-      .getMinutes()
-      .toString()
-      .padStart(2, '0')}`
-
     setInput('')
     setLoading(true)
     try {
-      const created = await saveMessageAsAppData(trimmed)
-      const dataId = created?.data_id
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: dataId ?? (prev.length > 0 ? Math.max(...prev.map((m) => m.id)) + 1 : 1),
-          author: 'me',
-          text: trimmed,
-          time,
-        },
-      ])
+      let sid = memoSessionId
+      if (!sid) {
+        sid = randomUUID()
+        localStorage.setItem(MEMO_SESSION_KEY, sid)
+        setMemoSessionId(sid)
+      }
+      await saveMessageAsAppData(trimmed, sid)
+      const sorted = await loadMemoList()
+      applyMessagesForSession(sorted, sid)
     } catch (e) {
       console.error('메시지 저장 오류:', e)
       alert(e instanceof Error ? e.message : '저장에 실패했습니다.')
@@ -267,14 +589,15 @@ export default function ChatPage() {
     }
   }
 
-  /** 메시지 텍스트를 앱 데이터로 저장 (form handleSubmit과 동일한 payload 구성) */
-  const saveMessageAsAppData = async (text: string): Promise<ApiAppData> => {
+  /** 메시지 텍스트를 앱 데이터로 저장 (extra_1 = 메모 스레드 UUID) */
+  const saveMessageAsAppData = async (text: string, sessionId: string): Promise<ApiAppData> => {
     if (!text.trim()) throw new Error('메시지가 비어 있습니다.')
-    // form과 동일: ap_subject/ap_content에 메시지, 나머지는 ''/0
+    if (!sessionId.trim()) throw new Error('메모 세션이 없습니다.')
     const form = {
       ap_subject: text.trim(),
       ap_content: text.trim(),
-      app_id: 1,
+      app_id: MEMO_APP_ID,
+      extra_1: sessionId.trim(),
     } as ApiAppPayload
     const strKeys: (keyof ApiAppPayload)[] = [
       'cate1', 'cate2', 'ap_subject', 'ap_content', 'recv_mail', 'link1', 'link2',
@@ -304,13 +627,18 @@ export default function ChatPage() {
     return await createAppDataApi(payload)
   }
 
-  /** 메시지 수정 시 앱 데이터 업데이트 */
+  /** 메시지 수정 시 앱 데이터 업데이트 (extra_1 유지) */
   const updateMessageAsAppData = async (dataId: number, text: string): Promise<void> => {
     if (!text.trim()) return
+    const existing = memos.find((m) => m.data_id === dataId)
+    const sessionId = existing
+      ? (existing.extra_1?.trim() || getMemoSessionId(existing))
+      : memoSessionId
     const form = {
       ap_subject: text.trim(),
       ap_content: text.trim(),
-      app_id: 1,
+      app_id: MEMO_APP_ID,
+      extra_1: sessionId,
     } as ApiAppPayload
     const strKeys: (keyof ApiAppPayload)[] = [
       'cate1', 'cate2', 'ap_subject', 'ap_content', 'recv_mail', 'link1', 'link2',
@@ -366,17 +694,109 @@ export default function ChatPage() {
           메모장
         </Typography>
 
-        <Paper
-          variant="outlined"
+        <Box
           sx={{
+            position: 'relative',
             height: 'calc(100vh - 240px)',
             minHeight: 420,
-            borderRadius: 2,
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: 'row',
             overflow: 'hidden',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider',
           }}
         >
+          {isNarrow && sidebarOpen && (
+            <Box
+              component="button"
+              type="button"
+              aria-label="메모 목록 닫기"
+              onClick={() => setSidebarOpen(false)}
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 1199,
+                border: 'none',
+                p: 0,
+                bgcolor: 'rgba(15, 23, 42, 0.35)',
+                cursor: 'pointer',
+              }}
+            />
+          )}
+
+          <Box
+            sx={{
+              flexShrink: 0,
+              height: '100%',
+              minHeight: 0,
+              ...(isNarrow
+                ? {
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    zIndex: 1200,
+                    transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+                    transition: 'transform 0.22s ease',
+                    boxShadow: sidebarOpen ? '8px 0 32px rgba(0,0,0,0.12)' : 'none',
+                  }
+                : {}),
+            }}
+          >
+            <MemoTitleSidebar
+              sessions={displaySessions}
+              serverSessionCount={memoSessions.length}
+              currentSessionId={memoSessionId}
+              listLoading={listLoading}
+              onSelectSession={handleSelectSession}
+              onNewMemo={handleNewMemo}
+              onCloseMobile={isNarrow ? () => setSidebarOpen(false) : undefined}
+            />
+          </Box>
+
+          <Paper
+            variant="outlined"
+            elevation={0}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              height: '100%',
+              borderRadius: '0 8px 8px 0',
+              border: 'none',
+              borderLeft: '1px solid',
+              borderColor: 'divider',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+          {isNarrow && (
+            <Box
+              sx={{
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                py: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <IconButton
+                size="small"
+                onClick={() => setSidebarOpen(true)}
+                title="메모 목록"
+                sx={{ border: '1px solid', borderColor: 'divider' }}
+              >
+                <MoreHorizIcon fontSize="small" />
+              </IconButton>
+              <Typography variant="body2" fontWeight={600} noWrap title={activeMemoTitle}>
+                {activeMemoTitle}
+              </Typography>
+            </Box>
+          )}
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', p: 2 }}>
             <Virtuoso
               data={messages}
@@ -461,6 +881,10 @@ export default function ChatPage() {
                                   setMessages((prev) =>
                                     prev.map((m) => (m.id === msg.id ? { ...m, text: editingDraft } : m))
                                   )
+                                  const sorted = await loadMemoList()
+                                  if (memoSessionId) {
+                                    applyMessagesForSession(sorted, memoSessionId)
+                                  }
                                 } catch (e) {
                                   console.error('메시지 수정 오류:', e)
                                   alert(e instanceof Error ? e.message : '수정에 실패했습니다.')
@@ -697,6 +1121,7 @@ export default function ChatPage() {
           </Box>
           </Box>
         </Paper>
+        </Box>
       </Paper>
 
       <Menu
@@ -785,4 +1210,3 @@ export default function ChatPage() {
     </Box>
   )
 }
-
