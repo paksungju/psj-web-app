@@ -421,15 +421,25 @@ export default function GalleryPage() {
           UI 시안, 컴포넌트, 아이콘 등 시각 자료를 카드 형태로 모아 보는 공간입니다.
         </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
           <Button
-            variant="contained"
-            color="primary"
-            onClick={() => setShowDropZone((prev) => !prev)}
+            size="small"
+            variant={showDropZone ? 'outlined' : 'contained'}
+            color={showDropZone ? 'inherit' : 'primary'}
+            onClick={() => {
+              if (showDropZone) {
+                setShowDropZone(false)
+                setSelectedFiles([])
+              } else {
+                setShowDropZone(true)
+              }
+            }}
           >
-            파일 업로드
+            {showDropZone ? '취소' : '업로드'}
           </Button>
+          {showDropZone && (
           <Button
+            size="small"
             variant="outlined"
             color="primary"
             disabled={!selectedFiles.length}
@@ -483,7 +493,9 @@ export default function GalleryPage() {
           >
             저장하기
           </Button>
+          )}
           <Button
+            size="small"
             variant="outlined"
             color="primary"
             onClick={() => {
@@ -494,6 +506,7 @@ export default function GalleryPage() {
             {selectMode ? '선택 취소' : '선택하기'}
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="primary"
             onClick={() => {
@@ -506,6 +519,7 @@ export default function GalleryPage() {
             {selectMode && selectedIndexes.length === files.length ? '전체해제' : '전체선택'}
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="error"
             disabled={!selectedIndexes.length}
@@ -515,18 +529,26 @@ export default function GalleryPage() {
           </Button>
         </Box>
 
-        <Box sx={{ display: 'flex', gap: 3, flex: 1, minHeight: 0 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: { xs: 2, md: 3 },
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
           {/* 폴더 트리 사이드바 */}
           <Paper
             elevation={0}
             sx={{
-              width: 220,
+              width: { xs: '100%', md: 220 },
               flexShrink: 0,
               borderRadius: 2,
               border: '1px solid',
               borderColor: 'divider',
               overflow: 'hidden',
-              alignSelf: 'flex-start',
+              alignSelf: { xs: 'stretch', md: 'flex-start' },
             }}
           >
             <Box sx={{ px: 1.5, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
@@ -596,7 +618,7 @@ export default function GalleryPage() {
             </List>
           </Paper>
 
-          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ flex: 1, minWidth: 0, width: { xs: '100%', md: 'auto' }, display: 'flex', flexDirection: 'column' }}>
         {showDropZone && (
           <>
             <Box

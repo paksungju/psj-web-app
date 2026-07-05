@@ -82,6 +82,19 @@ export async function updateSptContentCateApi(
   return (await response.json()) as SptContentCateRow
 }
 
+export async function updateSptContentCateSortApi(
+  ccId: number,
+  sortNo: number,
+): Promise<SptContentCateRow> {
+  const response = await fetch(`${BASE}/${ccId}/sort`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sort_no: sortNo }),
+  })
+  if (!response.ok) throw new Error('Failed to update SPT content category sort')
+  return (await response.json()) as SptContentCateRow
+}
+
 export async function deleteSptContentCateApi(ccIds: number[], upUserId?: number | null): Promise<void> {
   const response = await fetch(`${BASE}`, {
     method: 'DELETE',

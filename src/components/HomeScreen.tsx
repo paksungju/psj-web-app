@@ -412,7 +412,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
       sx={{
         flexGrow: 1,
         overflow: 'auto',
-        p: 3,
+        p: { xs: 1.5, sm: 2, md: 3 },
       }}
     >
       {/* 상단 공통 검색/빠른 이동 바 */}
@@ -422,7 +422,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
       <Paper
         elevation={0}
         sx={{
-          p: 4,
+          p: { xs: 1.5, sm: 2, md: 4 },
           borderRadius: 3,
           backgroundColor: 'background.paper',
           minHeight: '100%',
@@ -435,13 +435,14 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
             gap: 2,
             alignItems: 'start',
             width: '100%',
+            minWidth: 0,
             minHeight: '55vh',
           }}
         >
-          <Box sx={{ textAlign: 'left' }}>
+          <Box sx={{ textAlign: 'left', minWidth: 0 }}>
             <Typography
               variant="body2"
-              sx={{ mb: 1, color: 'text.secondary', fontWeight: 600, letterSpacing: 0.2, fontSize: 20 }}
+              sx={{ mb: 1, color: 'text.secondary', fontWeight: 600, letterSpacing: 0.2, fontSize: { xs: 16, sm: 18, md: 20 } }}
             >
               <AccessTimeIcon sx={{ fontSize: 22, verticalAlign: 'text-bottom', mr: 0.6 }} />
               {`${todayDateLabel} `}
@@ -454,7 +455,8 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
               elevation={1}
               sx={{
                 width: '100%',
-                p: 2,
+                maxWidth: '100%',
+                p: { xs: 1, sm: 1.5, md: 2 },
                 borderRadius: 2,
                 border: '1px solid',
                 borderColor: 'divider',
@@ -506,9 +508,9 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
               <Box
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 1fr)',
-                  gridAutoRows: '44px',
-                  gap: 0.5,
+                  gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+                  gridAutoRows: { xs: '36px', sm: '40px', md: '44px' },
+                  gap: { xs: 0.25, sm: 0.5 },
                 }}
               >
                 {WEEKDAY_LABELS.map((label, dayIdx) => (
@@ -552,12 +554,12 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
                       key={`${date?.toISOString() ?? 'empty'}-${idx}`}
                       onClick={date ? () => setSelectedDateKey(dateKey) : undefined}
                       sx={{
-                        height: 44,
+                        height: { xs: 36, sm: 40, md: 44 },
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         borderRadius: 1,
-                        fontSize: 13,
+                        fontSize: { xs: 12, sm: 13 },
                         fontWeight: isToday ? 700 : 500,
                         color: isToday ? '#2563eb' : weekendTextColor,
                         cursor: date ? 'pointer' : 'default',
@@ -569,7 +571,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
                         <Box
                           sx={{
                             width: '100%',
-                            height: 44,
+                            height: { xs: 36, sm: 40, md: 44 },
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -625,7 +627,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
               </Box>
             </Paper>
            {/* --------------------------- 할일목록 --------------------------- */}
-            <Paper sx={{ p: 2, mt: 2, width: '100%', maxWidth: '100%' }}>
+            <Paper sx={{ p: { xs: 1, sm: 1.5, md: 2 }, mt: 2, width: '100%', maxWidth: '100%', minWidth: 0, overflow: 'hidden' }}>
               <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                   {selectedDateKey ? `할일목록 (${selectedDateKey})` : '할일목록'}
@@ -647,7 +649,8 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
                   +
                 </Typography>
               </Stack>
-              <Table size="small">
+              <Box sx={{ overflowX: 'auto' }}>
+              <Table size="small" sx={{ minWidth: 280 }}>
                 <TableHead>
                   <TableRow sx={{ backgroundColor: '#f5f7fb' }}>
                     <TableCell sx={{ fontWeight: 600 }}>항목</TableCell>
@@ -699,17 +702,19 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
                   )}
                 </TableBody>
               </Table>
+              </Box>
             </Paper>
           </Box>
 
           <Paper
             elevation={0}
             sx={{
-              minHeight: 520,
+              minHeight: { xs: 0, lg: 520 },
               borderRadius: 2,
               border: '1px solid',
               borderColor: 'divider',
-              p: 2,
+              p: { xs: 1, sm: 1.5, md: 2 },
+              minWidth: 0,
             }}
           >
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
@@ -803,13 +808,15 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
           <Paper
             elevation={0}
             sx={{
-              minHeight: 520,
+              minHeight: { xs: 0, lg: 520 },
               borderRadius: 2,
               border: '1px solid',
               borderColor: 'divider',
-              p: 2,
+              p: { xs: 1, sm: 1.5, md: 2 },
+              minWidth: 0,
             }}
           >
+            {/* --------------------------- 메모장 start--------------------------- */}
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
               메모장
             </Typography>
@@ -857,6 +864,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
                       >
                         <ListItemText
                           primary={row.ap_subject || '(제목 없음)'}
+                          primaryTypographyProps={{ sx: { whiteSpace: 'pre-wrap' } }}
                           secondary={(
                             <Box sx={{ mt: 0.5 }}>
                               <Typography variant="caption" color="text.secondary">
@@ -933,6 +941,7 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
               </Box>
             </DialogContent>
           </Dialog>
+             {/* --------------------------- 메모장 end ----------------------------- */}
           <Dialog
             open={popupOpen}
             onClose={() => {

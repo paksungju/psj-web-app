@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import {
   Box,
   Button,
-  Checkbox,
   Collapse,
   CircularProgress,
   FormControl,
+  FormControlLabel,
   List,
   ListItemButton,
   MenuItem,
@@ -14,15 +14,12 @@ import {
   RadioGroup,
   Select,
   Stack,
+  Switch,
   TextField,
   Typography,
-  FormControlLabel,
 } from '@mui/material'
-import FolderIcon from '@mui/icons-material/Folder'
-import FolderOpenIcon from '@mui/icons-material/FolderOpen'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import TopBar from '../../components/TopBar'
+import MenuFolderIcon from '../../components/MenuFolderIcon'
 import {
   createMenuApi,
   fetchMenusApi,
@@ -70,6 +67,16 @@ function buildMenuTree(rows: ApiMenuRow[]): MenuNode[] {
   return roots
 }
 
+function getMenuAncestorIds(rows: ApiMenuRow[], menuId: number): number[] {
+  const ids: number[] = []
+  let current = rows.find((m) => m.menu_id === menuId)
+  while (current?.parent_id != null) {
+    ids.push(current.parent_id)
+    current = rows.find((m) => m.menu_id === current!.parent_id)
+  }
+  return ids
+}
+
 export default function MenuPage() {
   const [loading, setLoading] = useState(true)
   const [menus, setMenus] = useState<ApiMenuRow[]>([])
@@ -86,6 +93,11 @@ export default function MenuPage() {
 
   const treeRoots = useMemo(() => buildMenuTree(menus), [menus])
 
+  const openFolderIds = useMemo(() => {
+    if (selectedMenuId == null) return new Set<number>()
+    return new Set([selectedMenuId, ...getMenuAncestorIds(menus, selectedMenuId)])
+  }, [menus, selectedMenuId])
+
   const siblingSortMaxPlusOne = useMemo(() => {
     const parentId = formParentId
     const siblings =
@@ -99,6 +111,14 @@ export default function MenuPage() {
     const parentNode = menus.find((m) => m.menu_id === formParentId)
     return (parentNode?.depth ?? 0) + 1
   }, [menus, formParentId])
+
+  const depthOneMenus = useMemo(
+    () =>
+      menus
+        .filter((m) => m.parent_id == null)
+        .sort((a, b) => a.sort_no - b.sort_no || b.menu_id - a.menu_id),
+    [menus],
+  )
 
   const [form, setForm] = useState({
     me_subject: '',
@@ -141,6 +161,17 @@ export default function MenuPage() {
       is_use: selectedNode.is_use ?? 1,
     })
   }, [selectedNode])
+
+  useEffect(() => {
+    if (selectedMenuId == null) return
+    const ancestorIds = getMenuAncestorIds(menus, selectedMenuId)
+    if (ancestorIds.length === 0) return
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      for (const id of ancestorIds) next.add(id)
+      return next
+    })
+  }, [selectedMenuId, menus])
 
   const handleFormChange =
     (field: keyof typeof form) =>
@@ -272,6 +303,7 @@ export default function MenuPage() {
   const renderNode = (node: MenuNode, level: number) => {
     const hasChildren = node.children.length > 0
     const expanded = expandedIds.has(node.menu_id)
+    const isFolderOpen = openFolderIds.has(node.menu_id)
 
     return (
       <Box key={node.menu_id}>
@@ -297,21 +329,7 @@ export default function MenuPage() {
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, flex: 1 }}>
-            {hasChildren ? (
-              expanded ? (
-                <ExpandMoreIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-              ) : (
-                <ChevronRightIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-              )
-            ) : (
-              <Box sx={{ width: 18 }} />
-            )}
-
-            {expanded ? (
-              <FolderOpenIcon fontSize="medium" color="primary" sx={{ fontSize: 20 }} />
-            ) : (
-              <FolderIcon fontSize="medium" color="primary" sx={{ fontSize: 20 }} />
-            )}
+            <MenuFolderIcon open={isFolderOpen} size={20} />
 
             <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
               {node.me_subject}
@@ -329,10 +347,6 @@ export default function MenuPage() {
       </Box>
     )
   }
-
-  const parentLabel = formParentId == null
-    ? 'ROOT(부모 없음)'
-    : (menus.find((m) => m.menu_id === formParentId)?.me_subject ?? 'ROOT(부모 없음)')
 
   return (
     <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}>
@@ -431,7 +445,7 @@ export default function MenuPage() {
               </Paper>
 
               <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                <Typography variant="body2" color="text.secondary">
+                {/* <Typography variant="body2" color="text.secondary">
                   부모( parent_id ):{' '}
                   <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {parentLabel}
@@ -442,7 +456,7 @@ export default function MenuPage() {
                   <Box component="span" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     {newDepth}
                   </Box>
-                </Typography>
+                </Typography> */}
 
                 <Paper
                   elevation={0}
@@ -483,14 +497,11 @@ export default function MenuPage() {
                           <MenuItem value="">
                             ROOT(부모 없음)
                           </MenuItem>
-                          {menus
-                            .slice()
-                            .sort((a, b) => (a.depth ?? 0) - (b.depth ?? 0) || a.sort_no - b.sort_no)
-                            .map((m) => (
-                              <MenuItem key={m.menu_id} value={m.menu_id}>
-                                {`${'  '.repeat(m.depth ?? 0)}${m.me_subject}`}
-                              </MenuItem>
-                            ))}
+                          {depthOneMenus.map((m) => (
+                            <MenuItem key={m.menu_id} value={m.menu_id}>
+                              {m.me_subject}
+                            </MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
                     </Box>
@@ -567,22 +578,22 @@ export default function MenuPage() {
 
                     <Box>
                       <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                        is_use
+                        사용여부
                       </Typography>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Checkbox
-                          checked={form.is_use === 1}
-                          onChange={(e) =>
-                            setForm((prev) => ({
-                              ...prev,
-                              is_use: (e.target as HTMLInputElement).checked ? 1 : 0,
-                            }))
-                          }
-                        />
-                        <Typography variant="body2" color="text.secondary">
-                          사용함
-                        </Typography>
-                      </Stack>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={form.is_use === 1}
+                            onChange={(e) =>
+                              setForm((prev) => ({
+                                ...prev,
+                                is_use: e.target.checked ? 1 : 0,
+                              }))
+                            }
+                          />
+                        }
+                        label={form.is_use === 1 ? 'ON' : 'OFF'}
+                      />
                     </Box>
 
                     <Stack direction="row" spacing={1.5} sx={{ mt: 2, justifyContent: 'flex-end' }}>

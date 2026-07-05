@@ -346,15 +346,17 @@ export default function FavoritePage() {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           제목, 주소, 메모, 구분으로 즐겨찾기를 관리합니다.
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
           <Button
+            size="small"
             variant="contained"
             color="primary"
             onClick={() => setShowDropZone((prev) => !prev)}
           >
-           등록하기
+            등록하기
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="primary"
             onClick={() => {
@@ -365,6 +367,7 @@ export default function FavoritePage() {
             {selectMode ? '선택 취소' : '선택하기'}
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="error"
             disabled={!selectedIndexes.length}

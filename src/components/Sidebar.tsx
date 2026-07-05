@@ -62,7 +62,7 @@ const menuItems: SidebarMenuItem[] = [
   { id: 'favorite', label: '즐겨찾기', icon: <StarIcon /> },
   { id: 'gallery', label: '겔러리', icon: <GalleryIcon /> },
   { id: 'files', label: '파일관리', icon: <FolderIcon /> },
-  { id: 'profile', label: '프로필', icon: <PersonIcon /> },
+  { id: 'items', label: '아이템관리', icon: <PersonIcon /> },
   { id: 'makerplan', label: '메이커플랜', icon: <AssignmentIcon /> },
   {
     id: 'my-finance',
@@ -134,12 +134,7 @@ const drawerWidth = 280
 
 export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
-  const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({
-    apps: true,
-    spt: true,
-    settings: true,
-    mails: false,
-  })
+  const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({})
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 

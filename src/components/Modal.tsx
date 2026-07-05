@@ -17,8 +17,8 @@ export default function Modal({
   onDelUpdate = () => {},
 }: ModalProps) {
   return ReactDOM.createPortal(
-    <div className="modal-overlay" role="presentation">
-      <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" role="presentation" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal-box" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{title}</h3>
           <button type="button" className="modal-close" onClick={onClose} aria-label="닫기">

@@ -23,6 +23,8 @@ import {
 } from '@mui/material'
 import TopBar from '../../components/TopBar'
 import AddIcon from '@mui/icons-material/Add'
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import RefreshIcon from '@mui/icons-material/Refresh'
@@ -33,6 +35,7 @@ import {
   fetchSptContentCateGroupsApi,
   fetchSptContentCateItemsApi,
   updateSptContentCateApi,
+  updateSptContentCateSortApi,
   type SptContentCateRow,
 } from '../../apis/sptContentCateApi'
 
@@ -336,6 +339,55 @@ export default function SptContentCatePage() {
     }
   }
 
+  const handleMoveGroup = async (dir: 'up' | 'down') => {
+    if (!selectedGroup) return
+    const idx = groups.findIndex((g) => g.ccId === selectedGroup.ccId)
+    if (idx < 0) return
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= groups.length) return
+
+    const a = groups[idx]!
+    const b = groups[swapIdx]!
+    const aSortNo = a.sortNo ?? idx + 1
+    const bSortNo = b.sortNo ?? swapIdx + 1
+
+    try {
+      setLoading(true)
+      await updateSptContentCateSortApi(a.ccId, bSortNo)
+      await updateSptContentCateSortApi(b.ccId, aSortNo)
+      await loadGroups()
+    } catch (e) {
+      console.error(e)
+      alert('순서 변경에 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMoveItem = async (item: SptContentCateRow, itemList: SptContentCateRow[], dir: 'up' | 'down') => {
+    const idx = itemList.findIndex((r) => r.ccId === item.ccId)
+    if (idx < 0) return
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= itemList.length) return
+
+    const a = itemList[idx]!
+    const b = itemList[swapIdx]!
+    const aSortNo = a.sortNo ?? idx + 1
+    const bSortNo = b.sortNo ?? swapIdx + 1
+
+    try {
+      setLoading(true)
+      await updateSptContentCateSortApi(a.ccId, bSortNo)
+      await updateSptContentCateSortApi(b.ccId, aSortNo)
+      if (selectedGroup) await loadItems(selectedGroup.cateCd)
+    } catch (e) {
+      console.error(e)
+      alert('순서 변경에 실패했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <Box
       sx={{
@@ -393,6 +445,8 @@ export default function SptContentCatePage() {
             onEditItem={openEditItemDialog}
             onDeleteGroup={handleDeleteGroup}
             onDeleteItem={handleDeleteItem}
+            onMoveGroup={handleMoveGroup}
+            onMoveItem={handleMoveItem}
           />
         </Paper>
       </Box>
@@ -477,6 +531,8 @@ function GridShell(props: {
   onEditItem: (row: SptContentCateRow) => void
   onDeleteGroup: (row: SptContentCateRow) => void
   onDeleteItem: (row: SptContentCateRow) => void
+  onMoveGroup: (dir: 'up' | 'down') => void
+  onMoveItem: (item: SptContentCateRow, items: SptContentCateRow[], dir: 'up' | 'down') => void
 }) {
   const {
     loading,
@@ -496,6 +552,8 @@ function GridShell(props: {
     onEditItem,
     onDeleteGroup,
     onDeleteItem,
+    onMoveGroup,
+    onMoveItem,
   } = props
 
   const baseDepth = (selectedGroup?.cateDepth ?? 0) + 1
@@ -643,7 +701,33 @@ function GridShell(props: {
             )}
           </List>
 
-          <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
+            <Stack direction="row" spacing={0.5}>
+              {selectedGroup && (
+                <>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={loading || groups.findIndex((g) => g.ccId === selectedGroup.ccId) <= 0}
+                    onClick={() => onMoveGroup('up')}
+                    sx={{ fontSize: '0.75rem', py: 0.25, px: 1, minHeight: 26 }}
+                    startIcon={<ArrowUpwardIcon sx={{ fontSize: 16 }} />}
+                  >
+                    위로
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={loading || groups.findIndex((g) => g.ccId === selectedGroup.ccId) >= groups.length - 1}
+                    onClick={() => onMoveGroup('down')}
+                    sx={{ fontSize: '0.75rem', py: 0.25, px: 1, minHeight: 26 }}
+                    startIcon={<ArrowDownwardIcon sx={{ fontSize: 16 }} />}
+                  >
+                    아래로
+                  </Button>
+                </>
+              )}
+            </Stack>
             {selectedGroup && (
               <Button
                 color="error"
@@ -692,6 +776,30 @@ function GridShell(props: {
                   selectedRow: selectedDepth1Item,
                   onSelectRow: onSelectDepth1Item,
                 })}
+                {selectedDepth1Item && (
+                  <Stack direction="row" spacing={0.5} sx={{ mt: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={loading || baseDepthItems.findIndex((r) => r.ccId === selectedDepth1Item.ccId) <= 0}
+                      onClick={() => onMoveItem(selectedDepth1Item, baseDepthItems, 'up')}
+                      sx={{ fontSize: '0.75rem', py: 0.25, px: 1, minHeight: 26 }}
+                      startIcon={<ArrowUpwardIcon sx={{ fontSize: 16 }} />}
+                    >
+                      위로
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={loading || baseDepthItems.findIndex((r) => r.ccId === selectedDepth1Item.ccId) >= baseDepthItems.length - 1}
+                      onClick={() => onMoveItem(selectedDepth1Item, baseDepthItems, 'down')}
+                      sx={{ fontSize: '0.75rem', py: 0.25, px: 1, minHeight: 26 }}
+                      startIcon={<ArrowDownwardIcon sx={{ fontSize: 16 }} />}
+                    >
+                      아래로
+                    </Button>
+                  </Stack>
+                )}
               </Paper>
               <Paper sx={{ p: 2 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
@@ -717,6 +825,30 @@ function GridShell(props: {
                   selectedRow: selectedDepth2Item,
                   onSelectRow: onSelectDepth2Item,
                 })}
+                {selectedDepth2Item && (
+                  <Stack direction="row" spacing={0.5} sx={{ mt: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={loading || depth2Items.findIndex((r) => r.ccId === selectedDepth2Item.ccId) <= 0}
+                      onClick={() => onMoveItem(selectedDepth2Item, depth2Items, 'up')}
+                      sx={{ fontSize: '0.75rem', py: 0.25, px: 1, minHeight: 26 }}
+                      startIcon={<ArrowUpwardIcon sx={{ fontSize: 16 }} />}
+                    >
+                      위로
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={loading || depth2Items.findIndex((r) => r.ccId === selectedDepth2Item.ccId) >= depth2Items.length - 1}
+                      onClick={() => onMoveItem(selectedDepth2Item, depth2Items, 'down')}
+                      sx={{ fontSize: '0.75rem', py: 0.25, px: 1, minHeight: 26 }}
+                      startIcon={<ArrowDownwardIcon sx={{ fontSize: 16 }} />}
+                    >
+                      아래로
+                    </Button>
+                  </Stack>
+                )}
               </Paper>
             </Box>
           )}

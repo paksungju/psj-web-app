@@ -283,14 +283,14 @@ export default function AccountsPage() {
       sx={{
         flexGrow: 1,
         overflow: 'auto',
-        p: 3,
+        p: { xs: 1.5, sm: 2, md: 3 },
       }}
     >
       <TopBar />
       <Paper
         elevation={0}
         sx={{
-          p: 3,
+          p: { xs: 1.5, sm: 2, md: 4 },
           borderRadius: 3,
           backgroundColor: 'background.paper',
           minHeight: '100%',
@@ -303,7 +303,7 @@ export default function AccountsPage() {
           시스템에서 사용하는 계정 목록입니다.
         </Typography>
 
-        <Button variant="contained" color="primary" sx={{ mb: 2 }} onClick={handleOpenCreate}>
+        <Button size="small" variant="contained" color="primary" sx={{ mb: 2 }} onClick={handleOpenCreate}>
           계정 추가
         </Button>
 

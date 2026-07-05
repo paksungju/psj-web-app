@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type MutableRefObject,
 } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import Draggable from 'react-draggable'
 import { ResizableBox } from 'react-resizable'
 import LeaderLineLib from 'leader-line-new'
@@ -36,27 +37,21 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import EditIcon from '@mui/icons-material/Edit'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
-import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Link from '@tiptap/extension-link'
-import Color from '@tiptap/extension-color'
-import { TextStyle } from '@tiptap/extension-text-style'
 import DOMPurify from 'dompurify'
-import Modal from '../../components/Modal'
 import {
-  contentBlockdelUpdate,
   fetchContentBlockData,
   getlineData,
   type IContentBlockModel,
   type IContentCateModel,
   positionSave,
-  postContentBlockSave,
   postlineDataSave,
 } from '../../apis/contentBlockApi'
 import {
   fetchSptContentCateGroupsApi,
   fetchSptContentCateItemsApi,
 } from '../../apis/sptContentCateApi'
+import ContentBlockModal from './contentBlockModal'
+import ContentBlockListModal from './contentBlockList'
 import {
   ColorCircle,
   ColorPickerContainer,
@@ -135,9 +130,18 @@ function scheduleLeaderLineClickDelete(line: LeaderLineInstance, lineRef: Mutabl
   }, 150)
 }
 
+type MenuCateRow = IContentCateModel & { groupCateCd: string }
+
+type RootCateGroup = {
+  cateCd: string
+  cateNm: string
+  sortNo: number | null
+}
+
 type CateGroup = {
   cateNm: string
-  items: Array<{ ciId: number | null; subject: string | null }>
+  groupCateCd: string
+  items: Array<{ ciId: number | null; subject: string | null; cateCd?: string }>
 }
 
 type SavedLineRow = {
@@ -158,6 +162,63 @@ const LeaderLine = LeaderLineLib as unknown as new (
   end: HTMLElement,
   options?: Record<string, unknown>,
 ) => LeaderLineInstance
+
+function buildSptItemPath(groupCateCd: string, itemCateCd?: string, fallbackCiId?: number | null) {
+  const cat1Part = encodeURIComponent(groupCateCd)
+  const cat2Part = encodeURIComponent(itemCateCd || String(fallbackCiId ?? ''))
+  return `/spt/${cat1Part}/${cat2Part}`
+}
+
+function copyTextToClipboard(text: string): boolean {
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', 'readonly')
+    textarea.style.position = 'fixed'
+    textarea.style.top = '0'
+    textarea.style.left = '0'
+    textarea.style.width = '2em'
+    textarea.style.height = '2em'
+    textarea.style.padding = '0'
+    textarea.style.border = 'none'
+    textarea.style.outline = 'none'
+    textarea.style.boxShadow = 'none'
+    textarea.style.background = 'transparent'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    textarea.setSelectionRange(0, text.length)
+    const ok = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    if (ok) return true
+  } catch {
+    // fall through
+  }
+  return false
+}
+
+async function copySptItemLink(groupCateCd: string, itemCateCd?: string, fallbackCiId?: number | null) {
+  const path = buildSptItemPath(groupCateCd, itemCateCd, fallbackCiId)
+  const url = `${window.location.origin}${path}`
+
+  if (copyTextToClipboard(url)) {
+    alert('링크가 복사되었습니다.')
+    return
+  }
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url)
+      alert('링크가 복사되었습니다.')
+      return
+    }
+  } catch {
+    // fall through
+  }
+
+  alert('링크 복사에 실패했습니다.')
+}
 
 const icons = [<EditIcon key="edit" />, <AttachFileIcon key="attach" />]
 
@@ -182,40 +243,50 @@ const icons = [<EditIcon key="edit" />, <AttachFileIcon key="attach" />]
 //   },
 // ]
 
-/** psj_spt_content_cate API → 사이드 메뉴용 IContentCateModel (ciId는 블록 조회용으로 ccId와 동일 사용) */
-async function loadSptContentCateMenuRows(): Promise<IContentCateModel[]> {
+/** psj_spt_content_cate 트리로 사이드 메뉴 구성 (블록 ci_id = cc_id) */
+async function loadSptContentCateMenuRows(): Promise<{
+  groups: RootCateGroup[]
+  rows: MenuCateRow[]
+}> {
   const groups = await fetchSptContentCateGroupsApi()
-  const rows: IContentCateModel[] = []
+
+  const menuRows: MenuCateRow[] = []
   for (const g of groups) {
     const groupLabel = (g.cateNm || g.cateCd || '').trim() || '미분류'
     const depth1 = await fetchSptContentCateItemsApi(g.cateCd)
     for (const item of depth1) {
-      rows.push({
-        ccId: item.ccId,
-        ciId: item.ccId,
-        subject: item.cateNm || item.cateCd || null,
-        cateCd: item.cateCd,
-        cateNm: groupLabel,
-      })
       const depth2 = await fetchSptContentCateItemsApi(item.cateCd)
-      for (const sub of depth2) {
-        rows.push({
-          ccId: sub.ccId,
-          ciId: sub.ccId,
-          subject: sub.cateNm || sub.cateCd || null,
-          cateCd: sub.cateCd,
+      const leaves = depth2.length > 0 ? depth2 : [item]
+      for (const leaf of leaves) {
+        const cateCd = leaf.cateCd
+        menuRows.push({
+          ccId: leaf.ccId,
+          ciId: leaf.ccId,
+          subject: leaf.cateNm || leaf.cateCd || null,
+          cateCd,
           cateNm: groupLabel,
+          groupCateCd: g.cateCd,
         })
       }
     }
   }
-  return rows
+
+  return {
+    groups: groups.map((g) => ({
+      cateCd: g.cateCd,
+      cateNm: g.cateNm,
+      sortNo: g.sortNo,
+    })),
+    rows: menuRows,
+  }
 }
 
 export default function SptPage({
   title = 'SPT HOME',
   description = '전략기획툴 작업 화면입니다.',
 }: SptPageProps) {
+  const { cat1, cat2 } = useParams<{ cat1?: string; cat2?: string }>()
+  const navigate = useNavigate()
   const [expanded, setExpanded] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [menuVisible, setMenuVisible] = useState(false)
@@ -225,8 +296,12 @@ export default function SptPage({
   const [rows, setRows] = useState<IContentBlockModel[]>([])
   const [angles, setAngles] = useState<number[]>([])
   const [lineDataRow, setLineDataRow] = useState<SavedLineRow[]>([])
-  const [cateDataRow, setCateDataRow] = useState<IContentCateModel[]>([])
+  const [cateDataRow, setCateDataRow] = useState<MenuCateRow[]>([])
+  const [rootGroups, setRootGroups] = useState<RootCateGroup[]>([])
   const [open, setOpen] = useState(false)
+  const [contentBlockListOpen, setContentBlockListOpen] = useState(false)
+  const [contentBlockEditBlock, setContentBlockEditBlock] = useState<IContentBlockModel | null>(null)
+  const [listRefreshKey, setListRefreshKey] = useState(0)
   const [value, setValue] = useState(0)
   const [selectedPath, setSelectedPath] = useState('fluid')
   const [selectedLineStyle, setSelectedLineStyle] = useState('solid')
@@ -234,70 +309,6 @@ export default function SptPage({
   const [lineChecked, setLineChecked] = useState(false)
   const [rotateChecked, setRotateChecked] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [cbId, setCbId] = useState('')
-  const [cbSubject, setCbSubject] = useState('')
-  const [cbContent, setCbContent] = useState('')
-  const [coType, setCoType] = useState('C01')
-  const [imgUrl, setImgUrl] = useState('')
-  const [topP, setTopP] = useState('100')
-  const [leftP, setLeftP] = useState('100')
-  const [blockWidth, setBlockWidth] = useState('100')
-  const [blockHeight, setBlockHeight] = useState('100')
-  const [headerYn, setHeaderYn] = useState('1')
-  const [headerBg, setHeaderBg] = useState('')
-  const [borderTk, setBorderTk] = useState('0')
-  const [borderR, setBorderR] = useState('0')
-  const [borderGd, setBorderGd] = useState('0')
-  const [bodyBg, setBodyBg] = useState('')
-  const [showTextColorPalette, setShowTextColorPalette] = useState(false)
-
-  const htmlEditor = useEditor({
-    extensions: [
-      StarterKit,
-      Link.configure({ openOnClick: false }),
-      TextStyle,
-      Color,
-    ],
-    content: cbContent || '',
-    editorProps: {
-      attributes: {
-        class: 'tiptap-content',
-      },
-    },
-    onUpdate: ({ editor }) => {
-      if (coType === 'C02') {
-        setCbContent(editor.getHTML())
-      }
-    },
-  })
-  const textEditor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: false,
-        bold: false,
-        italic: false,
-        strike: false,
-        code: false,
-        codeBlock: false,
-        blockquote: false,
-        bulletList: false,
-        orderedList: false,
-        listItem: false,
-        horizontalRule: false,
-      }),
-    ],
-    content: cbContent || '',
-    editorProps: {
-      attributes: {
-        class: 'tiptap-content',
-      },
-    },
-    onUpdate: ({ editor }) => {
-      if (coType === 'C01') {
-        setCbContent(editor.getText({ blockSeparator: '\n' }))
-      }
-    },
-  })
 
   const lineRef = useRef<LineEntry[]>([])
   const itemRefs = useRef<Array<React.RefObject<HTMLDivElement>>>([])
@@ -317,49 +328,16 @@ export default function SptPage({
     setMenuVisible(false)
   }
 
-  useEffect(() => {
-    if (!htmlEditor || coType !== 'C02') return
-    const current = htmlEditor.getHTML()
-    if (current !== (cbContent || '')) {
-      htmlEditor.commands.setContent(cbContent || '', { emitUpdate: false })
-    }
-  }, [htmlEditor, cbContent, coType])
+  const openContentBlockModal = useCallback((block: IContentBlockModel | null = null) => {
+    setContentBlockListOpen(false)
+    setContentBlockEditBlock(block)
+    setOpen(true)
+  }, [])
 
-  useEffect(() => {
-    if (!textEditor || coType !== 'C01') return
-    const current = textEditor.getText({ blockSeparator: '\n' })
-    if (current !== (cbContent || '')) {
-      textEditor.commands.setContent(cbContent || '', { emitUpdate: false })
-    }
-  }, [textEditor, cbContent, coType])
+  const openContentBlockListModal = useCallback(() => {
+    setContentBlockListOpen(true)
+  }, [])
 
-  const handleSetEditorLink = () => {
-    if (!htmlEditor) return
-    const previousUrl = htmlEditor.getAttributes('link').href as string | undefined
-    const url = window.prompt('링크 URL을 입력하세요.', previousUrl || '')
-    if (url === null) return
-    const normalized = url.trim()
-    if (!normalized) {
-      htmlEditor.chain().focus().unsetLink().run()
-      return
-    }
-    htmlEditor.chain().focus().extendMarkRange('link').setLink({ href: normalized }).run()
-  }
-
-  const handleSetEditorTextColor = (color: string) => {
-    if (!htmlEditor) return
-    htmlEditor.chain().focus().setColor(color).run()
-    setShowTextColorPalette(false)
-  }
-
-  const handleUnsetEditorTextColor = () => {
-    if (!htmlEditor) return
-    htmlEditor.chain().focus().unsetColor().run()
-    setShowTextColorPalette(false)
-  }
-
-  const activeTextColor = (htmlEditor?.getAttributes('textStyle').color as string | undefined) || ''
-  const textColorPalette = ['#0f172a', '#334155', '#64748b', '#ef4444', '#f59e0b', '#16a34a', '#2563eb', '#7c3aed']
 
   const allLinesRemove = useCallback(() => {
     lineRef.current.forEach(({ line }) => line.remove())
@@ -386,9 +364,10 @@ export default function SptPage({
 
   const searchContentBlockRowData = useCallback(async (id: string) => {
     allLinesRemove()
+    setLineDataRow([])
+    setSelectedRefs([])
     setRows([])
     itemRefs.current = []
-    setCbId('')
     try {
       const list = await fetchContentBlockData({ ciId: id })
       const safeRows: IContentBlockModel[] = (list ?? []).map((row) => ({
@@ -418,74 +397,109 @@ export default function SptPage({
     }
   }, [allLinesRemove, searchLineRowData])
 
-  const getContentBlockDetail = useCallback(async (id: string) => {
+  const openContentBlockEdit = useCallback((id: string) => {
     const detail = rows.find((row) => String(row.cbId) === id)
     if (!detail) return
-
-    setCoType(String(detail.coType ?? 'C01').trim() || 'C01')
-    setCbId(String(detail.cbId ?? '').trim())
-    setCbSubject(String(detail.cbSubject ?? '').trim())
-    setCbContent(String(detail.cbContent ?? '').trim())
-    setImgUrl(String(detail.imgUrl ?? '').trim())
-    setTopP(String(detail.topP ?? 100))
-    setLeftP(String(detail.leftP ?? 100))
-    setBlockWidth(String(detail.width ?? 100))
-    setBlockHeight(String(detail.height ?? 100))
-    setHeaderYn(String(detail.headerYn ?? 1))
-    setHeaderBg(String(detail.headerBg ?? '').trim())
-    setBorderTk(String(detail.borderTk ?? 0))
-    setBorderR(String(detail.borderR ?? 0))
-    setBorderGd(String(detail.borderGd ?? 0))
-    setBodyBg(String(detail.bodyBg ?? '').trim())
-  }, [rows])
+    openContentBlockModal(detail)
+  }, [rows, openContentBlockModal])
 
   const searchRowData = useCallback(async () => {
     try {
-      const rows = await loadSptContentCateMenuRows()
+      const { groups, rows } = await loadSptContentCateMenuRows()
+      setRootGroups(groups)
       setCateDataRow(rows)
-      const first = rows.find((r) => r.ciId != null)
-      if (first?.ciId != null) {
-        const id = String(first.ciId)
-        const groupNames = [...new Set(rows.map((r) => r.cateNm).filter(Boolean))]
-        setExpanded((prev) =>
-          prev && groupNames.includes(prev) ? prev : (groupNames[0] ?? ''),
-        )
-        setSelectedCiId(id)
-        await searchContentBlockRowData(id)
-      } else {
-        setExpanded('')
-        setSelectedCiId(null)
-        setRows([])
-        setLineDataRow([])
-        itemRefs.current = []
+      const groupNames = groups.map((g) => (g.cateNm || g.cateCd || '').trim() || '미분류')
+      setExpanded((prev) =>
+        prev && groupNames.includes(prev) ? prev : (groupNames[0] ?? ''),
+      )
+      if (!cat1) {
+        const first = rows.find((r) => r.ciId != null) ?? rows[0]
+        if (first?.ciId != null) {
+          const id = String(first.ciId)
+          setSelectedCiId(id)
+          await searchContentBlockRowData(id)
+        } else {
+          setSelectedCiId(null)
+          setRows([])
+          setLineDataRow([])
+          itemRefs.current = []
+        }
       }
     } catch (e) {
       console.error('SPT 분류 목록 로드 실패:', e)
+      setRootGroups([])
       setCateDataRow([])
       setSelectedCiId(null)
       setRows([])
       setLineDataRow([])
     }
-  }, [searchContentBlockRowData])
+  }, [searchContentBlockRowData, cat1])
 
   useEffect(() => {
     void searchRowData()
   }, [searchRowData])
 
+  useEffect(() => {
+    if (!cat1 || cateDataRow.length === 0) return
+    const decodedCat1 = decodeURIComponent(cat1)
+    const matchGroup = rootGroups.find((g) => g.cateCd === decodedCat1)
+    if (matchGroup) {
+      const groupLabel = (matchGroup.cateNm || matchGroup.cateCd || '').trim() || '미분류'
+      setExpanded(groupLabel)
+      if (cat2) {
+        const decodedCat2 = decodeURIComponent(cat2)
+        const matchItem = cateDataRow.find(
+          (r) => r.groupCateCd === matchGroup.cateCd && r.cateCd === decodedCat2,
+        )
+        if (matchItem) {
+          const nextId = matchItem.ciId != null ? String(matchItem.ciId) : null
+          if (nextId && selectedCiId !== nextId) {
+            setSelectedCiId(nextId)
+            void searchContentBlockRowData(nextId)
+          } else if (!nextId) {
+            setSelectedCiId(null)
+            setRows([])
+            setLineDataRow([])
+            itemRefs.current = []
+          }
+        }
+      }
+    }
+  }, [cat1, cat2, cateDataRow, rootGroups, selectedCiId, searchContentBlockRowData])
+
   const grouped = useMemo<CateGroup[]>(() => {
-    return Object.values(
-      cateDataRow.reduce((acc, { cateNm, ciId, subject }) => {
-        const categoryName = cateNm || '미분류'
-        if (!acc[categoryName]) {
-          acc[categoryName] = { cateNm: categoryName, items: [] }
-        }
-        if (ciId != null && subject != null) {
-          acc[categoryName].items.push({ ciId, subject })
-        }
-        return acc
-      }, {} as Record<string, CateGroup>),
-    )
-  }, [cateDataRow])
+    return rootGroups.map((g) => {
+      const groupLabel = (g.cateNm || g.cateCd || '').trim() || '미분류'
+      const items = cateDataRow
+        .filter((r) => r.groupCateCd === g.cateCd)
+        .map((r) => ({
+          ciId: r.ciId,
+          subject: r.subject,
+          cateCd: r.cateCd,
+        }))
+      return { cateNm: groupLabel, groupCateCd: g.cateCd, items }
+    })
+  }, [rootGroups, cateDataRow])
+
+  const isMenuItemSelected = useCallback(
+    (groupCateCd: string, itemCateCd?: string, itemCiId?: number | null) => {
+      if (cat1 && cat2 && itemCateCd) {
+        return decodeURIComponent(cat1) === groupCateCd && decodeURIComponent(cat2) === itemCateCd
+      }
+      return itemCiId != null && selectedCiId === String(itemCiId)
+    },
+    [cat1, cat2, selectedCiId],
+  )
+
+  const selectedCategoryLabel = useMemo(() => {
+    if (!selectedCiId) return ''
+    const row = cateDataRow.find((r) => r.ciId != null && String(r.ciId) === selectedCiId)
+    if (!row) return ''
+    const depth1 = String(row.cateNm ?? '').trim()
+    const depth2 = String(row.subject ?? '').trim()
+    if (depth1 && depth2) return `${depth1} > ${depth2}`
+    return depth2 || depth1
+  }, [cateDataRow, selectedCiId])
 
   const drawSavedLines = useCallback(() => {
     if (!lineDataRow.length) return
@@ -630,7 +644,7 @@ export default function SptPage({
   }
 
   const lineDataSave = async () => {
-    const ciIdForLine = selectedCiId || cbId
+    const ciIdForLine = selectedCiId
     if (!ciIdForLine) {
       alert('카테고리를 선택한 후 저장해주세요.')
       return
@@ -652,99 +666,6 @@ export default function SptPage({
     }
   }
 
-  const resetContentBlockForm = () => {
-    setCbId('')
-    setCbSubject('')
-    setCbContent('')
-    setCoType('C01')
-    setImgUrl('')
-    setTopP('100')
-    setLeftP('100')
-    setBlockWidth('100')
-    setBlockHeight('100')
-    setHeaderYn('1')
-    setHeaderBg('')
-    setBorderTk('0')
-    setBorderR('0')
-    setBorderGd('0')
-    setBodyBg('')
-  }
-
-  const contentBlockSave = async () => {
-    const subjectT = cbSubject.trim()
-    const contentT = cbContent.trim()
-    const isInsert = !cbId || cbId.trim() === '' || cbId.trim() === '0'
-    const params: Record<string, unknown> = {
-      cbId: cbId.trim(),
-      ciId: selectedCiId != null ? String(selectedCiId).trim() : selectedCiId,
-      imgUrl: imgUrl.trim(),
-      cbSubject: subjectT,
-      cbContent: contentT,
-      coType: coType.trim() || 'C01',
-      topP: Number(String(topP).trim() || 100),
-      leftP: Number(String(leftP).trim() || 100),
-      width: Number(String(blockWidth).trim() || 100),
-      height: Number(String(blockHeight).trim() || 100),
-      inUserNo: 1,
-      inUserId: '1',
-      useYn: '1',
-      delYn: '0',
-      headerYn: (() => {
-        const n = Number.parseInt(String(headerYn).trim(), 10)
-        return Number.isFinite(n) ? n : 1
-      })(),
-      headerBg: headerBg.trim(),
-      borderTk: Number(String(borderTk).trim() || 0),
-      borderR: Number(String(borderR).trim() || 0),
-      borderGd: Number(String(borderGd).trim() || 0),
-      bodyBg: bodyBg.trim(),
-    }
-
-    if (isInsert) {
-      Object.assign(params, {
-        imgAngle: 0,
-        zIndex: 100,
-      })
-    }
-
-    if (!subjectT || !contentT) {
-      alert('제목과 내용을 입력해주세요. (공백만 있으면 저장되지 않습니다)')
-      return
-    }
-
-    try {
-      const res = await postContentBlockSave(params)
-      if (res?.code !== '0') {
-        alert(res?.msg || '저장에 실패했습니다.')
-        return
-      }
-      if (selectedCiId) {
-        await searchContentBlockRowData(selectedCiId)
-      }
-      resetContentBlockForm()
-    } catch (e) {
-      console.error('저장 실패:', e)
-      alert('저장 중 오류가 발생했습니다.')
-    }
-  }
-
-  const onDelUpdate = async () => {
-    if (!cbId || cbId === '0') {
-      alert('삭제할 콘텐츠 블록이 없습니다.')
-      return
-    }
-    const response = await contentBlockdelUpdate({ cbId })
-    if (response?.code === '0') {
-      setOpen(false)
-      resetContentBlockForm()
-      if (selectedCiId) {
-        await searchContentBlockRowData(selectedCiId)
-      }
-    } else {
-      alert(response?.msg || '삭제 처리에 실패했습니다.')
-    }
-  }
-
   const actionMap: Record<string, () => void> = {
     저장하기: () => { void handleSavePositions() },
     라인저장: () => { void lineDataSave() },
@@ -756,6 +677,11 @@ export default function SptPage({
   return (
     <>
       <div className="contentWrap" onClick={handleClick} onContextMenu={handleContextMenu}>
+
+{/* ######################################################################################################################### */}
+   {/* 컨텐츠 블록 출력 스페이스 시작 */}
+{/* ######################################################################################################################### */}
+
         {rows.map((row, index) => {
           const isImageBlock = row.coType === 'C03' || row.coType === '03'
           const showHeader = Number(row.headerYn ?? 1) !== 0
@@ -859,8 +785,7 @@ export default function SptPage({
                           '& svg': { fontSize: '18px' },
                         }}
                         onClick={() => {
-                          void getContentBlockDetail(String(row.cbId))
-                          setOpen(true)
+                          openContentBlockEdit(String(row.cbId))
                         }}
                       >
                         <MoreVertIcon />
@@ -890,8 +815,7 @@ export default function SptPage({
                           '& svg': { fontSize: '18px' },
                         }}
                         onClick={() => {
-                          void getContentBlockDetail(String(row.cbId))
-                          setOpen(true)
+                          openContentBlockEdit(String(row.cbId))
                         }}
                       >
                         <MoreVertIcon />
@@ -912,7 +836,18 @@ export default function SptPage({
                       }}
                     >
                       {isImageBlock ? (
-                        <img src={row.imgUrl} alt="content" style={{ width: '100%', height: '100%' }} />
+                        row.linkUrl ? (
+                          <a
+                            href={row.linkUrl}
+                            target={row.linkTarget === '_blank' ? '_blank' : '_self'}
+                            rel={row.linkTarget === '_blank' ? 'noopener noreferrer' : undefined}
+                            style={{ display: 'block', width: '100%', height: '100%' }}
+                          >
+                            <img src={row.imgUrl} alt="content" style={{ width: '100%', height: '100%' }} />
+                          </a>
+                        ) : (
+                          <img src={row.imgUrl} alt="content" style={{ width: '100%', height: '100%' }} />
+                        )
                       ) : row.coType === 'C01' || row.coType === '01' ? (
                         <div
                           style={{
@@ -950,6 +885,9 @@ export default function SptPage({
           </Draggable>
           )
         })}
+{/* ######################################################################################################################### */}
+   {/* 컨텐츠 블록 출력 스페이스 종료 */}
+{/* ######################################################################################################################### */}
 
         <div style={{
           position: 'fixed',
@@ -978,43 +916,70 @@ export default function SptPage({
                   <Typography component="div">
                     <Typography variant="subtitle2" sx={{ mb: 1 }}>{title}</Typography>
                     <Typography variant="caption" color="text.secondary">{description}</Typography>
-
+{/* ######################################################################################################################### */}
+   {/* SIDE MENU 시작 */}
+{/* ######################################################################################################################### */}
                     <div style={{ marginTop: 12 }}>
                       {grouped.map((category) => (
-                        <Accordion key={category.cateNm} expanded={expanded === category.cateNm} onChange={handleChange2(category.cateNm)} disableGutters square>
+                        <Accordion key={category.groupCateCd} expanded={expanded === category.cateNm} onChange={handleChange2(category.cateNm)} disableGutters square>
                           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                             <Typography>{category.cateNm}</Typography>
                           </AccordionSummary>
-                          {category.items.length > 0 && (
-                            <AccordionDetails>
+                          <AccordionDetails>
+                            {category.items.length > 0 ? (
                               <List dense disablePadding>
                                 {category.items.map((item, index) => (
-                                  <ListItem key={`item-${item.ciId ?? index}`} disablePadding>
+                                  <ListItem key={`item-${item.cateCd ?? item.ciId ?? index}`} disablePadding>
                                     <ListItemText
                                       onClick={() => {
+                                        const path = buildSptItemPath(
+                                          category.groupCateCd || category.cateNm,
+                                          item.cateCd,
+                                          item.ciId,
+                                        )
+                                        navigate(path, { replace: true })
                                         if (item.ciId != null) {
                                           const nextId = String(item.ciId)
                                           if (selectedCiId !== nextId) {
                                             setSelectedCiId(nextId)
                                             void searchContentBlockRowData(nextId)
                                           }
+                                        } else {
+                                          setSelectedCiId(null)
+                                          allLinesRemove()
+                                          setRows([])
+                                          setLineDataRow([])
+                                          itemRefs.current = []
                                         }
                                       }}
                                       primary={(
-                                        <span style={{ color: 'black', paddingLeft: '15px', fontWeight: selectedCiId === String(item.ciId) ? 'bold' : 'normal', cursor: 'pointer' }}>
+                                        <span style={{ color: 'black', paddingLeft: '15px', fontWeight: isMenuItemSelected(category.groupCateCd, item.cateCd, item.ciId) ? 'bold' : 'normal', cursor: 'pointer' }}>
                                           {item.subject}
                                         </span>
                                       )}
                                     />
                                     {item.subject &&
-                                      selectedCiId === String(item.ciId) &&
+                                      isMenuItemSelected(category.groupCateCd, item.cateCd, item.ciId) &&
+                                      item.ciId != null &&
                                       icons.map((icon, i) => (
                                         <IconButton
                                           key={`icon-${item.ciId}-${i}`}
                                           size="small"
                                           sx={{ padding: '2px', '& svg': { fontSize: '16px' } }}
-                                          onClick={() => {
-                                            if (i === 0) setOpen(true)
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            e.stopPropagation()
+                                            if (i === 0) {
+                                              setOpen(false)
+                                              setContentBlockEditBlock(null)
+                                              openContentBlockListModal()
+                                            } else {
+                                              void copySptItemLink(
+                                                category.groupCateCd || category.cateNm,
+                                                item.cateCd,
+                                                item.ciId,
+                                              )
+                                            }
                                           }}
                                         >
                                           {icon}
@@ -1023,14 +988,21 @@ export default function SptPage({
                                   </ListItem>
                                 ))}
                               </List>
-                            </AccordionDetails>
-                          )}
+                            ) : (
+                              <Typography variant="caption" color="text.secondary" sx={{ pl: 1 }}>
+                                하위 항목 없음
+                              </Typography>
+                            )}
+                          </AccordionDetails>
                         </Accordion>
                       ))}
                     </div>
-
-                    <p style={{ marginTop: '10px' }}>
-                      <Button variant="contained" color="info" onClick={() => setOpen(true)}>등록하기</Button>
+{/* ######################################################################################################################### */}
+   {/* SIDE MENU 종료 */}
+{/* ######################################################################################################################### */}
+                    <p style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                      <Button variant="contained" color="info" size="small" onClick={() => openContentBlockModal(null)}>등록하기</Button>
+                      <Button variant="contained" color="info" size="small" onClick={() => openContentBlockListModal()}>다중등록</Button>
                     </p>
                   </Typography>
                 )}
@@ -1131,257 +1103,38 @@ export default function SptPage({
         )}
       </div>
 
-      {open && (
-        <Modal
-          title="콘텐츠블록 등록"
-          onClose={() => {
-            setOpen(false)
-            resetContentBlockForm()
-          }}
-          onSave={() => {
-            void contentBlockSave()
-            setOpen(false)
-            resetContentBlockForm()
-          }}
-          onDelUpdate={() => {
-            void onDelUpdate()
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              height: 400,
-              overflowY: 'auto',
-              boxSizing: 'border-box',
-              paddingRight: '4px',
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label htmlFor="coType" style={{ fontWeight: 'bold', marginBottom: '4px' }}>타입 (Type)</label>
-              <div id="coType" style={{ display: 'inline-flex', width: 'fit-content', border: '1px solid #d0d7de', borderRadius: '10px', overflow: 'hidden', marginTop: '4px' }}>
-                {[
-                  { value: 'C01', label: 'Text' },
-                  { value: 'C02', label: 'Html' },
-                  { value: 'C03', label: 'Image' },
-                ].map((opt) => {
-                  const selected = coType === opt.value
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setCoType(opt.value)}
-                      style={{
-                        border: 'none',
-                        borderRight: opt.value === 'C03' ? 'none' : '1px solid #d0d7de',
-                        padding: '8px 14px',
-                        fontSize: '14px',
-                        fontWeight: selected ? 700 : 500,
-                        color: selected ? '#fff' : '#374151',
-                        background: selected ? '#1976d2' : '#fff',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+      <ContentBlockModal
+        open={open}
+        onClose={() => {
+          setOpen(false)
+          setContentBlockEditBlock(null)
+        }}
+        selectedCiId={selectedCiId}
+        initialBlock={contentBlockEditBlock}
+        onSaved={async () => {
+          if (selectedCiId) {
+            await searchContentBlockRowData(selectedCiId)
+          }
+          setListRefreshKey((k) => k + 1)
+        }}
+      />
 
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label htmlFor="cbSubject" style={{ fontWeight: 'bold', marginBottom: '4px' }}>제목 (Subject)</label>
-              <input type="text" id="cbSubject" value={cbSubject} onChange={(e) => setCbSubject(e.target.value)} style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px' }} />
-            </div>
-
-            {coType === 'C03' && (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <label htmlFor="imgUrl" style={{ fontWeight: 'bold', marginBottom: '4px' }}>이미지 (imgUrl)</label>
-                <input type="text" id="imgUrl" value={imgUrl} onChange={(e) => setImgUrl(e.target.value)} style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px' }} />
-              </div>
-            )}
-
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <label htmlFor="cbContent" style={{ fontWeight: 'bold', marginBottom: '4px' }}>내용 (Content)</label>
-              {coType === 'C02' ? (
-                <div style={{ border: '1px solid #ccc', borderRadius: '8px', overflow: 'hidden' }}>
-                  <div className="editor-toolbar">
-                    <button
-                      type="button"
-                      className={`editor-tool-btn ${htmlEditor?.isActive('bold') ? 'is-active' : ''}`}
-                      onClick={() => htmlEditor?.chain().focus().toggleBold().run()}
-                    >
-                      Bold
-                    </button>
-                    <button
-                      type="button"
-                      className={`editor-tool-btn ${htmlEditor?.isActive('italic') ? 'is-active' : ''}`}
-                      onClick={() => htmlEditor?.chain().focus().toggleItalic().run()}
-                    >
-                      Italic
-                    </button>
-                    <button
-                      type="button"
-                      className={`editor-tool-btn ${htmlEditor?.isActive('bulletList') ? 'is-active' : ''}`}
-                      onClick={() => htmlEditor?.chain().focus().toggleBulletList().run()}
-                    >
-                      Bullet
-                    </button>
-                    <button
-                      type="button"
-                      className={`editor-tool-btn ${htmlEditor?.isActive('orderedList') ? 'is-active' : ''}`}
-                      onClick={() => htmlEditor?.chain().focus().toggleOrderedList().run()}
-                    >
-                      Number
-                    </button>
-                    <button
-                      type="button"
-                      className={`editor-tool-btn ${htmlEditor?.isActive('link') ? 'is-active' : ''}`}
-                      onClick={handleSetEditorLink}
-                    >
-                      Link
-                    </button>
-                    <div className="editor-color-wrap">
-                      <button
-                        type="button"
-                        className={`editor-tool-btn ${activeTextColor ? 'is-active' : ''}`}
-                        onClick={() => setShowTextColorPalette((prev) => !prev)}
-                      >
-                        Color
-                      </button>
-                      {showTextColorPalette && (
-                        <div className="editor-color-palette">
-                          <div className="editor-color-grid">
-                            {textColorPalette.map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                className={`editor-color-chip ${activeTextColor === color ? 'is-active' : ''}`}
-                                style={{ backgroundColor: color }}
-                                onClick={() => handleSetEditorTextColor(color)}
-                                aria-label={`텍스트 색상 ${color}`}
-                              />
-                            ))}
-                          </div>
-                          <div className="editor-color-actions">
-                            <input
-                              type="color"
-                              value={activeTextColor || '#000000'}
-                              onChange={(e) => handleSetEditorTextColor(e.target.value)}
-                              title="사용자 지정 색상"
-                            />
-                            <button type="button" className="editor-tool-btn" onClick={handleUnsetEditorTextColor}>
-                              Clear
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <EditorContent editor={htmlEditor} />
-                </div>
-              ) : coType === 'C01' ? (
-                <div style={{ border: '1px solid #ccc', borderRadius: '8px', overflow: 'hidden' }}>
-                  <div style={{ padding: '8px 10px', borderBottom: '1px solid #eee', background: '#f8fafc', color: '#64748b', fontSize: '12px' }}>
-                    텍스트 전용 모드 (서식/링크 사용 불가)
-                  </div>
-                  <EditorContent editor={textEditor} />
-                </div>
-              ) : (
-                <textarea id="cbContent" rows={6} value={cbContent} onChange={(e) => setCbContent(e.target.value)} style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', resize: 'vertical' }} />
-              )}
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                gap: '10px',
-                width: '100%',
-              }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <label htmlFor="topP" style={{ fontWeight: 'bold', marginBottom: '4px' }}>Top</label>
-                <input
-                  type="number"
-                  id="topP"
-                  value={topP}
-                  onChange={(e) => setTopP(e.target.value)}
-                  style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <label htmlFor="leftP" style={{ fontWeight: 'bold', marginBottom: '4px' }}>Left</label>
-                <input
-                  type="number"
-                  id="leftP"
-                  value={leftP}
-                  onChange={(e) => setLeftP(e.target.value)}
-                  style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <label htmlFor="blockWidth" style={{ fontWeight: 'bold', marginBottom: '4px' }}>Width</label>
-                <input
-                  type="number"
-                  id="blockWidth"
-                  value={blockWidth}
-                  onChange={(e) => setBlockWidth(e.target.value)}
-                  style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <label htmlFor="blockHeight" style={{ fontWeight: 'bold', marginBottom: '4px' }}>Height</label>
-                <input
-                  type="number"
-                  id="blockHeight"
-                  value={blockHeight}
-                  onChange={(e) => setBlockHeight(e.target.value)}
-                  style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <span style={{ fontWeight: 'bold', fontSize: '14px' }}>헤더·테두리·본문 배경</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '14px' }}>
-                  <input
-                    type="checkbox"
-                    checked={headerYn !== '0'}
-                    onChange={(e) => setHeaderYn(e.target.checked ? '1' : '0')}
-                  />
-                  헤더 표시
-                </label>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', width: '100%' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <label htmlFor="headerBg" style={{ fontWeight: 'bold', marginBottom: '4px' }}>헤더 배경 (headerBg)</label>
-                  <input type="text" id="headerBg" value={headerBg} onChange={(e) => setHeaderBg(e.target.value)} placeholder="#ebebeb" style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <label htmlFor="bodyBg" style={{ fontWeight: 'bold', marginBottom: '4px' }}>본문 배경 (bodyBg)</label>
-                  <input type="text" id="bodyBg" value={bodyBg} onChange={(e) => setBodyBg(e.target.value)} placeholder="#fff" style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <label htmlFor="borderTk" style={{ fontWeight: 'bold', marginBottom: '4px' }}>테두리 두께 (borderTk)</label>
-                  <input type="number" id="borderTk" value={borderTk} onChange={(e) => setBorderTk(e.target.value)} style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <label htmlFor="borderR" style={{ fontWeight: 'bold', marginBottom: '4px' }}>모서리 반경 (borderR)</label>
-                  <input type="number" id="borderR" value={borderR} onChange={(e) => setBorderR(e.target.value)} style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, gridColumn: '1 / -1' }}>
-                  <label htmlFor="borderGd" style={{ fontWeight: 'bold', marginBottom: '4px' }}>외곽선 보조 (borderGd)</label>
-                  <input type="number" id="borderGd" value={borderGd} onChange={(e) => setBorderGd(e.target.value)} style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '8px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <ContentBlockListModal
+        open={contentBlockListOpen}
+        onClose={() => setContentBlockListOpen(false)}
+        selectedCiId={selectedCiId}
+        selectedCategoryLabel={selectedCategoryLabel}
+        onSaved={async () => {
+          if (selectedCiId) {
+            await searchContentBlockRowData(selectedCiId)
+          }
+        }}
+        onViewBlock={(block) => {
+          setContentBlockEditBlock(block)
+          setOpen(true)
+        }}
+        refreshKey={listRefreshKey}
+      />
 
       <div
         style={{

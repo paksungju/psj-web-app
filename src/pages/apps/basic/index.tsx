@@ -22,7 +22,7 @@ import {
   deleteAppDataBatchApi,
   type ApiAppData,
 } from '../../../apis/appApi'
-import { normalizeInfoBoardCategory } from './InfoBoardCategorySidebar'
+import { normalizeInfoBoardCategory, INFO_BOARD_LAYOUT_SX, INFO_BOARD_MAIN_SX, INFO_BOARD_PAGE_SX, INFO_BOARD_PAPER_SX } from './InfoBoardCategorySidebar'
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-'
@@ -46,6 +46,7 @@ export default function AppConfigsPage() {
   const [pageSize] = useState(10)
   const [hasNextPage, setHasNextPage] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [selectMode, setSelectMode] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   const categoryItems = useMemo(() => {
@@ -125,6 +126,7 @@ export default function AppConfigsPage() {
     try {
       const res = await deleteAppDataBatchApi(ids)
       setSelectedIds(new Set())
+      setSelectMode(false)
       await refreshList()
       if (res.errors.length > 0) {
         alert(`${res.deleted}건 삭제됨. 일부 실패:\n${res.errors.join('\n')}`)
@@ -145,21 +147,11 @@ export default function AppConfigsPage() {
   const totalPages = hasNextPage ? page + 1 : page
 
   return (
-    <Box
-      sx={{
-        flexGrow: 1,
-        overflow: 'auto',
-        p: 3,
-      }}
-    >
+    <Box sx={INFO_BOARD_PAGE_SX}>
       <TopBar />
       <Paper
         elevation={0}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          backgroundColor: 'background.paper',
-        }}
+        sx={INFO_BOARD_PAPER_SX}
       >
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
           정보게시판 목록
@@ -180,18 +172,31 @@ export default function AppConfigsPage() {
         <Button
           size="small"
           variant="outlined"
+          color="primary"
+          sx={{ mb: 2, ml: '10px' }}
+          onClick={() => {
+            setSelectMode((prev) => !prev)
+            setSelectedIds(new Set())
+          }}
+        >
+          {selectMode ? '선택 취소' : '선택하기'}
+        </Button>
+        <Button
+          size="small"
+          variant="outlined"
           color="inherit"
           sx={{ mb: 2, ml: '10px' }}
           onClick={handleDeleteSelected}
+          disabled={!selectMode || selectedIds.size === 0}
         >
           선택삭제
         </Button>
 
-        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+        <Box sx={INFO_BOARD_LAYOUT_SX}>
           <Paper
             variant="outlined"
             sx={{
-              width: 220,
+              width: { xs: '100%', md: 220 },
               flexShrink: 0,
               borderRadius: 2,
               overflow: 'hidden',
@@ -231,7 +236,7 @@ export default function AppConfigsPage() {
             </List>
           </Paper>
 
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={INFO_BOARD_MAIN_SX}>
             {loading ? (
               <Typography color="text.secondary">로딩 중...</Typography>
             ) : list.length === 0 ? (
@@ -253,27 +258,29 @@ export default function AppConfigsPage() {
                 <Table size="small">
                   <TableHead>
                     <TableRow sx={{ backgroundColor: '#f5f7fb' }}>
-                      <TableCell padding="checkbox" sx={{ fontWeight: 600, width: 48 }}>
-                        <Checkbox
-                          indeterminate={
-                            filteredList.some((row) => row.data_id != null && selectedIds.has(row.data_id)) &&
-                            !filteredList.every((row) => row.data_id != null && selectedIds.has(row.data_id))
-                          }
-                          checked={
-                            filteredList.length > 0 &&
-                            filteredList.every((row) => row.data_id != null && selectedIds.has(row.data_id))
-                          }
-                          onChange={handleSelectAll}
-                        />
+                      {selectMode && (
+                        <TableCell padding="checkbox" sx={{ fontWeight: 600, width: 48 }}>
+                          <Checkbox
+                            indeterminate={
+                              filteredList.some((row) => row.data_id != null && selectedIds.has(row.data_id)) &&
+                              !filteredList.every((row) => row.data_id != null && selectedIds.has(row.data_id))
+                            }
+                            checked={
+                              filteredList.length > 0 &&
+                              filteredList.every((row) => row.data_id != null && selectedIds.has(row.data_id))
+                            }
+                            onChange={handleSelectAll}
+                          />
+                        </TableCell>
+                      )}
+                      <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>
+                        ID
                       </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 600, width: 70 }}>
-                        data_id
-                      </TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 600, width: 70 }}>
+                      {/* <TableCell align="center" sx={{ fontWeight: 600, width: 70 }}>
                         app_id
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell align="center" sx={{ fontWeight: 600, minWidth: 180 }}>제목</TableCell>
-                      <TableCell align="center" sx={{ fontWeight: 600, width: 100 }}>작성자</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 600, width: 100, display: { xs: 'none', sm: 'table-cell' } }}>작성자</TableCell>
                       <TableCell align="center" sx={{ fontWeight: 600, width: 120 }}>등록일</TableCell>
                     </TableRow>
                   </TableHead>
@@ -288,15 +295,17 @@ export default function AppConfigsPage() {
                       })()
                       return (
                         <TableRow key={row.data_id ?? row.app_id ?? 0} hover>
-                          <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={row.data_id != null && selectedIds.has(row.data_id)}
-                              onChange={() => row.data_id != null && handleSelectOne(row.data_id)}
-                              disabled={row.data_id == null}
-                            />
-                          </TableCell>
+                          {selectMode && (
+                            <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={row.data_id != null && selectedIds.has(row.data_id)}
+                                onChange={() => row.data_id != null && handleSelectOne(row.data_id)}
+                                disabled={row.data_id == null}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell align="center">{row.data_id ?? '-'}</TableCell>
-                          <TableCell align="center">{row.app_id ?? '-'}</TableCell>
+                          {/* <TableCell align="center">{row.app_id ?? '-'}</TableCell> */}
                           <TableCell
                             onClick={() =>
                               row.data_id != null && navigate(`/apps/info/${row.data_id}`)
@@ -310,7 +319,7 @@ export default function AppConfigsPage() {
                           >
                             {row.ap_subject ?? '-'}
                           </TableCell>
-                          <TableCell>{row.user_nm ?? '-'}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{row.user_nm ?? '-'}</TableCell>
                           <TableCell align="center">{formatDate(row.regist_dt)}</TableCell>
                         </TableRow>
                       )

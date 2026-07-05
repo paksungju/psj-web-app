@@ -29,7 +29,7 @@ function createNewSessionId(): string {
 }
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
-type ModelType = 'exaone' | 'claude' | 'gemini' | 'gemma'
+type ModelType = 'qwen' | 'claude' | 'gemini' | 'gemma'
 
 interface ChatMessage {
   id: number
@@ -144,13 +144,13 @@ const ChatIcon = () => (
   </svg>
 )
 
-const ExaoneLogo = () => (
+const QwenLogo = () => (
   <div style={{
     width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-    background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+    background: 'linear-gradient(135deg, #0ea5e9, #4f46e5)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 13, fontWeight: 700, color: '#fff',
-  }}>E</div>
+    fontSize: 12, fontWeight: 700, color: '#fff',
+  }}>Q</div>
 )
 
 const ClaudeLogo = () => (
@@ -181,7 +181,7 @@ const GemmaLogo = () => (
 )
 
 const MODEL_TAB_STYLE: Record<ModelType, { activeBg: string; label: string }> = {
-  exaone: { activeBg: '#4f46e5', label: 'EXAONE' },
+  qwen: { activeBg: '#4f46e5', label: 'Qwen 3.6' },
   claude: { activeBg: '#d97706', label: 'Claude' },
   gemini: { activeBg: '#2563eb', label: 'Gemini' },
   gemma: { activeBg: '#ea4335', label: 'Gemma 4' },
@@ -191,12 +191,12 @@ function BotAvatar({ model }: { model?: ModelType }) {
   if (model === 'claude') return <ClaudeLogo />
   if (model === 'gemini') return <GeminiLogo />
   if (model === 'gemma') return <GemmaLogo />
-  return <ExaoneLogo />
+  return <QwenLogo />
 }
 
 // ── 모델 선택 토글 ─────────────────────────────────────────────────────────────
 function ModelToggle({ model, onChange }: { model: ModelType; onChange: (m: ModelType) => void }) {
-  const order: ModelType[] = ['exaone', 'claude', 'gemini', 'gemma']
+  const order: ModelType[] = ['qwen', 'claude', 'gemini', 'gemma']
   return (
     <div style={{
       display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end',
@@ -244,10 +244,14 @@ function mapRawRowToChatMessage(item: any, idx: number): ChatMessage {
   const created = item.created_at ?? item.time ?? new Date().toISOString()
   const d = new Date(created)
   const time = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
-  // additional_kwargs.chat_api 에서 모델 정보 추출 (exaone | claude | gemini)
+  // additional_kwargs.chat_api 에서 모델 정보 추출 (qwen | exaone | claude | gemini | gemma)
   const chatApi = payload?.data?.additional_kwargs?.chat_api as string | undefined
   const model: ModelType | undefined =
-    chatApi === 'claude' ? 'claude' : chatApi === 'gemini' ? 'gemini' : chatApi === 'gemma' ? 'gemma' : chatApi === 'exaone' ? 'exaone' : undefined
+    chatApi === 'claude' ? 'claude'
+      : chatApi === 'gemini' ? 'gemini'
+      : chatApi === 'gemma' ? 'gemma'
+      : chatApi === 'qwen' || chatApi === 'exaone' ? 'qwen'
+      : undefined
   return {
     id: item.id ?? idx + 1,
     author,
@@ -322,12 +326,12 @@ function EmptyState({ onSuggestion }: { onSuggestion: (s: string) => void }) {
       <div style={{ textAlign: 'center' }}>
         <div style={{
           width: 64, height: 64, borderRadius: '50%', margin: '0 auto 16px',
-          background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+          background: 'linear-gradient(135deg, #0ea5e9, #4f46e5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 26, fontWeight: 700, color: '#fff',
-        }}>E</div>
-        <div style={{ fontSize: 20, fontWeight: 600, color: '#111827', marginBottom: 6 }}>EXAONE 4.0</div>
-        <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>LG AI Research · 로컬 실행 중<br />무엇이든 물어보세요</div>
+        }}>Q</div>
+        <div style={{ fontSize: 20, fontWeight: 600, color: '#111827', marginBottom: 6 }}>Qwen 3.6</div>
+        <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6 }}>Ollama · 로컬 실행 중<br />무엇이든 물어보세요</div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxWidth: 440, width: '100%' }}>
         {suggestions.map((s) => (
@@ -643,7 +647,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [hasMoreOlder, setHasMoreOlder] = useState(false)
-  const [model, setModel] = useState<ModelType>('exaone')
+  const [model, setModel] = useState<ModelType>('qwen')
   const [webSearch, setWebSearch] = useState(false)
   const [sessionId, setSessionId] = useState<string>(() => getOrCreateSessionId())
   const [sessions, setSessions] = useState<SessionItem[]>([])
@@ -900,7 +904,7 @@ export default function ChatPage() {
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setLoading(true)
 
-    if (model === 'exaone' || model === 'gemma') {
+    if (model === 'qwen' || model === 'gemma') {
       const botMsgId = userMsgId + 1
       setMessages(prev => [...prev, { id: botMsgId, author: 'bot', text: '', time: now(), model }])
 
@@ -1136,7 +1140,10 @@ export default function ChatPage() {
                   {activeTitle}
                 </div>
                 <div style={{ fontSize: 11, color: '#6b7280' }}>
-                  {model === 'claude' ? 'Claude · Anthropic' : model === 'gemini' ? 'Gemini · Google' : 'EXAONE · Local'}
+                  {model === 'claude' ? 'Claude · Anthropic'
+                    : model === 'gemini' ? 'Gemini · Google'
+                    : model === 'gemma' ? 'Gemma 4 · oMLX'
+                    : 'Qwen 3.6 · Ollama'}
                   {' · '}
                   <span title={`세션 ID: ${sessionId}`} style={{ color: '#9ca3af' }}>
                     #{sessionId.slice(0, 6)}
@@ -1229,8 +1236,10 @@ export default function ChatPage() {
             <p style={{ textAlign: 'center', fontSize: 11, color: '#9ca3af', marginTop: 8 }}>
               {webSearch
                 ? '웹검색 ON · DuckDuckGo로 검색 후 답변에 반영됩니다'
-                : model === 'exaone'
-                  ? 'EXAONE · 로컬 모델 · 웹검색 ON 시 검색만 외부 연동'
+                : model === 'qwen'
+                  ? 'Qwen 3.6 · Ollama 로컬 · 웹검색 ON 시 검색만 외부 연동'
+                  : model === 'gemma'
+                    ? 'Gemma 4 · oMLX 로컬'
                   : model === 'claude'
                     ? 'Claude · Anthropic API'
                     : 'Gemini · Google API (서버에 GEMINI_API_KEY 설정)'}

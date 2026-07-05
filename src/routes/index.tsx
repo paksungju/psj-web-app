@@ -41,6 +41,8 @@ export default function AppRoutes() {
       setSelectedMenu('gallery')
     } else if (location.pathname === '/apps-accounts') {
       setSelectedMenu('apps-accounts')
+    } else if (location.pathname === '/items') {
+      setSelectedMenu('items')
     } else if (location.pathname === '/app/configs' || location.pathname.startsWith('/app/configs/')) {
       setSelectedMenu('app/configs')
     } else if (location.pathname === '/app-info' || location.pathname.startsWith('/app-info/')) {
@@ -79,12 +81,12 @@ export default function AppRoutes() {
       setSelectedMenu('training')
     } else if (location.pathname === '/mails' || location.pathname.startsWith('/mails/')) {
       setSelectedMenu('mails')
-    } else if (location.pathname === '/spt') {
-      setSelectedMenu('spt-home')
     } else if (location.pathname === '/spt/cate') {
       setSelectedMenu('spt-cate')
     } else if (location.pathname === '/spt/resources') {
       setSelectedMenu('spt-resources')
+    } else if (location.pathname === '/spt' || location.pathname.startsWith('/spt/')) {
+      setSelectedMenu('spt-home')
     } else if (location.pathname === '/server' || location.pathname.startsWith('/server/')) {
       setSelectedMenu('server')
     } else if (location.pathname === '/codes' || location.pathname.startsWith('/codes/')) {
@@ -109,6 +111,8 @@ export default function AppRoutes() {
       navigate('/gallery')
     } else if (menuId === 'apps-accounts') {
       navigate('/apps-accounts')
+    } else if (menuId === 'items') {
+      navigate('/items')
     } else if (menuId === 'app-settings') {
       navigate('/webapps')
     } else if (menuId === 'app/configs') {

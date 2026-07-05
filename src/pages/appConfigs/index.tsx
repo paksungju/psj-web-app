@@ -61,6 +61,7 @@ export default function WebappsPage() {
         </Typography>
 
         <Button
+          size="small"
           variant="contained"
           color="primary"
           sx={{ mb: 2 }}

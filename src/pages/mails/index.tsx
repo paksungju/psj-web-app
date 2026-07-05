@@ -194,24 +194,26 @@ export default function MailsPage() {
           통합 메일함입니다.
         </Typography>
 
-        <Button variant="outlined" color="inherit" sx={{ mb: 2 }} onClick={handleImport}>
-          가져오기
-        </Button>
-        <Button variant="outlined" color="inherit" sx={{ mb: 2, ml: 1 }} onClick={() => refreshList()}>
-          새로고침
-        </Button>
-        <Button variant="outlined" color="inherit" sx={{ mb: 2, ml: 1 }} onClick={handleWriteMail}>
-          메일작성
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          sx={{ mb: 2, ml: 1 }}
-          disabled={!selectedIds.size || isDeleting}
-          onClick={handleDeleteSelected}
-        >
-          선택 삭제
-        </Button>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+          <Button size="small" variant="outlined" color="inherit" onClick={handleImport}>
+            가져오기
+          </Button>
+          <Button size="small" variant="outlined" color="inherit" onClick={() => refreshList()}>
+            새로고침
+          </Button>
+          <Button size="small" variant="outlined" color="inherit" onClick={handleWriteMail}>
+            메일작성
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            disabled={!selectedIds.size || isDeleting}
+            onClick={handleDeleteSelected}
+          >
+            선택 삭제
+          </Button>
+        </Box>
 
         {fetchError && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={() => setFetchError(null)}>

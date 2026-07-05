@@ -15,6 +15,21 @@ const theme = createTheme({
   typography: {
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
+  components: {
+    MuiDialog: {
+      styleOverrides: {
+        paper: ({ theme: muiTheme, ownerState }) => ({
+          ...(ownerState.fullWidth && {
+            [muiTheme.breakpoints.down('sm')]: {
+              mx: muiTheme.spacing(0.75),
+              width: 'calc(100% - 12px)',
+              maxWidth: 'calc(100% - 12px)',
+            },
+          }),
+        }),
+      },
+    },
+  },
 })
 
 function App() {

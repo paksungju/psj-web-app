@@ -11,7 +11,20 @@ import {
 } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { CKEditor } from '@ckeditor/ckeditor5-react'
-import { ClassicEditor, Essentials, Paragraph, Bold, Italic, Image, ImageInsert, ImageResize, ImageToolbar, ImageStyle, Alignment } from 'ckeditor5'
+import {
+  ClassicEditor,
+  Essentials,
+  Paragraph,
+  Bold,
+  Italic,
+  FontColor,
+  Image,
+  ImageInsert,
+  ImageResize,
+  ImageToolbar,
+  ImageStyle,
+  Alignment,
+} from 'ckeditor5'
 import 'ckeditor5/ckeditor5.css'
 import TopBar from '../../../components/TopBar'
 import {
@@ -35,6 +48,9 @@ import {
 } from '../../../apis/fileApi'
 import InfoBoardCategorySidebar, {
   normalizeInfoBoardCategory,
+  INFO_BOARD_LAYOUT_SX,
+  INFO_BOARD_PAGE_SX,
+  INFO_BOARD_PAPER_SX,
 } from './InfoBoardCategorySidebar'
 
 const numFields: (keyof ApiAppPayload)[] = [
@@ -611,17 +627,13 @@ export function AppDataFormPage({
 
   if (loading) {
     return (
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
+      <Box sx={INFO_BOARD_PAGE_SX}>
         <TopBar />
         <Paper
           elevation={0}
-          sx={{
-            p: 3,
-            borderRadius: 3,
-            backgroundColor: 'background.paper',
-          }}
+          sx={INFO_BOARD_PAPER_SX}
         >
-          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+          <Box sx={INFO_BOARD_LAYOUT_SX}>
             {!hideCategorySidebar && <InfoBoardCategorySidebar selectedKey={categorySelectedKey} />}
             <Typography color="text.secondary">로딩 중...</Typography>
           </Box>
@@ -631,15 +643,11 @@ export function AppDataFormPage({
   }
 
   return (
-    <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
+    <Box sx={INFO_BOARD_PAGE_SX}>
       <TopBar />
       <Paper
         elevation={0}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          backgroundColor: 'background.paper',
-        }}
+        sx={INFO_BOARD_PAPER_SX}
       >
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
           {isEdit ? '앱 데이터 수정' : '앱 데이터 등록'}
@@ -648,7 +656,7 @@ export function AppDataFormPage({
           {isEdit ? '앱 데이터를 수정합니다.' : '새 앱 데이터를 등록합니다.'}
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+        <Box sx={INFO_BOARD_LAYOUT_SX}>
           {!hideCategorySidebar && <InfoBoardCategorySidebar selectedKey={categorySelectedKey} />}
           <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack spacing={2.5}>
@@ -690,8 +698,8 @@ export function AppDataFormPage({
                 data={form.ap_content ?? ''}
                 config={{
                   licenseKey: 'GPL',
-                  plugins: [Essentials, Paragraph, Bold, Italic, Image, ImageInsert, ImageResize, ImageToolbar, ImageStyle, Alignment],
-                  toolbar: ['undo', 'redo', '|', 'bold', 'italic', '|', 'alignment:left', 'alignment:center', 'alignment:right', 'alignment:justify', '|', 'insertImage'],
+                  plugins: [Essentials, Paragraph, Bold, Italic, FontColor, Image, ImageInsert, ImageResize, ImageToolbar, ImageStyle, Alignment],
+                  toolbar: ['undo', 'redo', '|', 'bold', 'italic', '|', 'fontColor', '|', 'alignment:left', 'alignment:center', 'alignment:right', 'alignment:justify', '|', 'insertImage'],
                   image: {
                     resizeOptions: [
                       { name: 'resizeImage:original', value: null, icon: 'original' },

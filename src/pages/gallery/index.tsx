@@ -387,15 +387,17 @@ export default function GalleryPage() {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           UI 시안, 컴포넌트, 아이콘 등 시각 자료를 카드 형태로 모아 보는 공간입니다.
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
           <Button
+            size="small"
             variant="contained"
             color="primary"
             onClick={() => setShowDropZone((prev) => !prev)}
           >
-            파일 업로드
+            업로드
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="primary"
             disabled={!selectedFiles.length || !selectedCate1Cd}
@@ -430,6 +432,7 @@ export default function GalleryPage() {
             저장하기
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="primary"
             onClick={() => {
@@ -440,6 +443,7 @@ export default function GalleryPage() {
             {selectMode ? '선택 취소' : '선택하기'}
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="primary"
             onClick={() => {
@@ -456,6 +460,7 @@ export default function GalleryPage() {
               : '전체선택'}
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="error"
             disabled={!selectedIndexes.length}
@@ -496,11 +501,12 @@ export default function GalleryPage() {
           >
             {/* 목록 보기 버튼 */}
             <Button
+              size="small"
               onClick={() => setViewMode('list')}
               sx={{
-                minWidth: 70,
-                px: 1.5,
-                py: 0.9,
+                minWidth: 56,
+                px: 1,
+                py: 0.5,
                 borderRadius: 0,
                 bgcolor: viewMode === 'list' ? 'primary.light' : 'background.paper',
                 color: viewMode === 'list' ? 'primary.main' : 'text.secondary',
@@ -511,25 +517,26 @@ export default function GalleryPage() {
             >
               <CheckIcon
                 sx={{
-                  fontSize: 16,
+                  fontSize: 14,
                   mr: 0.5,
                   color: viewMode === 'list' ? 'common.white' : 'inherit',
                 }}
               />
               <MenuIcon
                 sx={{
-                  fontSize: 18,
+                  fontSize: 16,
                   color: viewMode === 'list' ? 'common.white' : 'inherit',
                 }}
               />
             </Button>
             {/* 이미지(그리드) 보기 버튼 */}
             <Button
+              size="small"
               onClick={() => setViewMode('grid')}
               sx={{
-                minWidth: 70,
-                px: 1.5,
-                py: 0.9,
+                minWidth: 56,
+                px: 1,
+                py: 0.5,
                 borderRadius: 0,
                 bgcolor: viewMode === 'grid' ? 'primary.light' : 'background.paper',
                 color: viewMode === 'grid' ? 'primary.main' : 'text.secondary',
@@ -542,7 +549,7 @@ export default function GalleryPage() {
             >
               <AppsIcon
                 sx={{
-                  fontSize: 16,
+                  fontSize: 14,
                   color: viewMode === 'grid' ? 'common.white' : 'inherit',
                 }}
               />

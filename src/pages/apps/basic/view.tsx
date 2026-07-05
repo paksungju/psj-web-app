@@ -14,6 +14,10 @@ import {
 import TopBar from '../../../components/TopBar'
 import { fetchAppDataByIdApi, deleteAppDataApi, type ApiAppData } from '../../../apis/appApi'
 import InfoBoardCategorySidebar, {
+  INFO_BOARD_LAYOUT_SX,
+  INFO_BOARD_MAIN_SX,
+  INFO_BOARD_PAGE_SX,
+  INFO_BOARD_PAPER_SX,
   normalizeInfoBoardCategory,
 } from './InfoBoardCategorySidebar'
 import { fetchFilesByDataApi, type ApiFile } from '../../../apis/fileApi'
@@ -102,10 +106,10 @@ export default function AppDataViewPage() {
 
   if (loading) {
     return (
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
+      <Box sx={INFO_BOARD_PAGE_SX}>
         <TopBar />
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper' }}>
-          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+        <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
+          <Box sx={INFO_BOARD_LAYOUT_SX}>
             <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(undefined)} />
             <Typography color="text.secondary">로딩 중...</Typography>
           </Box>
@@ -116,12 +120,12 @@ export default function AppDataViewPage() {
 
   if (!data) {
     return (
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
+      <Box sx={INFO_BOARD_PAGE_SX}>
         <TopBar />
-        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper' }}>
-          <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+        <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
+          <Box sx={INFO_BOARD_LAYOUT_SX}>
             <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(undefined)} />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={INFO_BOARD_MAIN_SX}>
               <Typography color="text.secondary" sx={{ mb: 2 }}>
                 데이터를 찾을 수 없습니다.
               </Typography>
@@ -158,19 +162,15 @@ export default function AppDataViewPage() {
   }
 
   return (
-    <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
+    <Box sx={INFO_BOARD_PAGE_SX}>
       <TopBar />
       <Paper
         elevation={0}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          backgroundColor: 'background.paper',
-        }}
+        sx={INFO_BOARD_PAPER_SX}
       >
-        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+        <Box sx={INFO_BOARD_LAYOUT_SX}>
           <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(data.cate1)} />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={INFO_BOARD_MAIN_SX}>
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
           {data.ap_subject ?? '(제목 없음)'}
         </Typography>
@@ -266,10 +266,11 @@ export default function AppDataViewPage() {
         <Divider sx={{ my: 2 }} />
 
         <Stack direction="row" spacing={1.5} sx={{ mt: 3, justifyContent: 'flex-end' }}>
-          <Button variant="outlined" color="inherit" onClick={() => navigate('/apps/info')}>
+          <Button size="small" variant="outlined" color="inherit" onClick={() => navigate('/apps/info')}>
             목 록
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="error"
             onClick={() => setDeleteConfirmOpen(true)}
@@ -277,6 +278,7 @@ export default function AppDataViewPage() {
             삭제
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="inherit"
             onClick={() => navigate(`/apps/info/${data.data_id}/form?reply=1`)}
@@ -284,6 +286,7 @@ export default function AppDataViewPage() {
             답변
           </Button>
           <Button
+            size="small"
             variant="outlined"
             color="inherit"
             onClick={() => navigate(`/apps/info/${data.data_id}/form`)}

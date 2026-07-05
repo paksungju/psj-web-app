@@ -48,6 +48,34 @@ export type InfoBoardCategorySidebarProps = {
   selectedKey: string
 }
 
+export const INFO_BOARD_LAYOUT_SX = {
+  display: 'flex',
+  flexDirection: { xs: 'column', md: 'row' },
+  gap: { xs: 2, md: 3 },
+  alignItems: 'flex-start',
+} as const
+
+export const INFO_BOARD_MAIN_SX = {
+  flex: 1,
+  minWidth: 0,
+  width: { xs: '100%', md: 'auto' },
+} as const
+
+/** HomeScreen 과 동일한 페이지 외곽 여백 */
+export const INFO_BOARD_PAGE_SX = {
+  flexGrow: 1,
+  overflow: 'auto',
+  p: { xs: 1.5, sm: 2, md: 3 },
+} as const
+
+/** HomeScreen 과 동일한 Paper 내부 여백 */
+export const INFO_BOARD_PAPER_SX = {
+  p: { xs: 1.5, sm: 2, md: 4 },
+  borderRadius: 3,
+  backgroundColor: 'background.paper',
+  minHeight: '100%',
+} as const
+
 export default function InfoBoardCategorySidebar({ selectedKey }: InfoBoardCategorySidebarProps) {
   const navigate = useNavigate()
   const { categoryItems, loading } = useInfoBoardCategoryItems()
@@ -64,7 +92,7 @@ export default function InfoBoardCategorySidebar({ selectedKey }: InfoBoardCateg
     <Paper
       variant="outlined"
       sx={{
-        width: 220,
+        width: { xs: '100%', md: 220 },
         flexShrink: 0,
         borderRadius: 2,
         overflow: 'hidden',

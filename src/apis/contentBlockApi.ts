@@ -1,5 +1,7 @@
 export interface IContentBlockModel {
   cbId: string
+  ciId?: number | string | null
+  crId?: number | null
   leftP: number
   topP: number
   width?: number
@@ -17,7 +19,10 @@ export interface IContentBlockModel {
   borderGd?: number
   bodyBg?: string
   linkUrl?: string
+  linkTarget?: string
   contentObject?: Record<string, unknown>
+  useYn?: string | null
+  delYn?: string | null
   inUserNo?: string
   inDatetime?: string
   upUserNo?: string
@@ -64,6 +69,7 @@ function normalizeContentBlockSavePayload(src: Record<string, unknown>): Record<
     'headerBg',
     'bodyBg',
     'linkUrl',
+    'linkTarget',
     'useYn',
     'delYn',
   ] as const
@@ -73,6 +79,7 @@ function normalizeContentBlockSavePayload(src: Record<string, unknown>): Record<
   }
   if (data.ciId != null) data.ciId = String(data.ciId).trim()
   if (data.cbId != null) data.cbId = String(data.cbId).trim()
+  if (data.crId != null) data.crId = Number(data.crId) || 0
 
   const existingContentObject =
     (typeof data.contentObject === 'object' && data.contentObject !== null
@@ -98,6 +105,7 @@ function normalizeContentBlockSavePayload(src: Record<string, unknown>): Record<
     border_gd: data.borderGd,
     body_bg: data.bodyBg,
     link_url: data.linkUrl,
+    link_target: data.linkTarget,
   }
   return data
 }

@@ -15,12 +15,14 @@ import FavoritePage from '../pages/apps/favorite'
 import SchedulePage from '../pages/schedule'
 import ScheduleCalendarPage from '../pages/schedule/calendar'
 import GalleryPage from '../pages/gallery'
+import SptResourcePage from '../pages/spt/resource'
 import FilesPage from '../pages/files'
 import MenuPage from '../pages/menu'
 import MakerPlanPage from '../pages/makerplan'
 import MakerPlanFormPage from '../pages/makerplan/form'
 import MakerPlanViewPage from '../pages/makerplan/view'
 import AccountsPage from '../pages/accounts'
+import ItemsPage from '../pages/items'
 import AppsInfoPage from '../pages/apps/basic'
 import AppInfoFormPage from '../pages/apps/basic/form'
 import AppInfoViewPage from '../pages/apps/basic/view'
@@ -34,7 +36,6 @@ import ServerStatusPage from '../pages/server'
 import CodesPage from '../pages/codes'
 import BaseConfigPage from '../pages/baseconfig'
 import PaidInfoPage from '../pages/paid'
-import SptPage from '../pages/spt'
 import SptContentCatePage from '../pages/spt/contentCate'
 import TrainingPage from '../pages/training'
 import TrainingFormPage from '../pages/training/form'
@@ -133,6 +134,7 @@ function AppShell({
             />
             <Route path="/gallery" element={<GalleryPage />} />
             <Route path="/apps-accounts" element={<AccountsPage />} />
+            <Route path="/items" element={<ItemsPage />} />
             <Route path="/app/configs" element={<AppConfigPage />} />
             <Route path="/app/configs/form" element={<AppConfigFormPage />} />
             <Route path="/app/configs/:id/form" element={<AppConfigFormPage />} />
@@ -159,12 +161,7 @@ function AppShell({
             <Route path="/server" element={<ServerStatusPage />} />
             <Route path="/codes" element={<CodesPage />} />
             <Route path="/spt/cate" element={<SptContentCatePage />} />
-            <Route
-              path="/spt/resources"
-              element={
-                <SptPage title="리소스관리" description="전략기획툴 리소스관리 화면입니다." />
-              }
-            />
+            <Route path="/spt/resources" element={<SptResourcePage />} />
             <Route path="/baseconfig" element={<BaseConfigPage />} />
             <Route path="/paid" element={<PaidInfoPage />} />
             <Route path="/training" element={<TrainingPage />} />
