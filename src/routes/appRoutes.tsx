@@ -21,11 +21,15 @@ import MenuPage from '../pages/menu'
 import MakerPlanPage from '../pages/makerplan'
 import MakerPlanFormPage from '../pages/makerplan/form'
 import MakerPlanViewPage from '../pages/makerplan/view'
+import MakerPlan3dViewerPage from '../pages/makerplan/viewer3d'
 import AccountsPage from '../pages/accounts'
 import ItemsPage from '../pages/items'
 import AppsInfoPage from '../pages/apps/basic'
 import AppInfoFormPage from '../pages/apps/basic/form'
 import AppInfoViewPage from '../pages/apps/basic/view'
+import IdeaBlockPage from '../pages/apps/ideablock'
+import IdeaBlockFormPage from '../pages/apps/ideablock/form'
+import IdeaBlockViewPage from '../pages/apps/ideablock/view'
 import AppConfigPage from '../pages/appconfigs'
 import AppConfigFormPage from '../pages/appconfigs/form'
 import SearchPage from '../pages/search'
@@ -33,8 +37,10 @@ import MailsPage from '../pages/mails'
 import MailFormPage from '../pages/mails/mailForm'
 import MailViewPage from '../pages/mails/view'
 import ServerStatusPage from '../pages/server'
+import ServerRemotePage from '../pages/server/remote'
 import CodesPage from '../pages/codes'
 import BaseConfigPage from '../pages/baseconfig'
+import UsersPage from '../pages/users'
 import PaidInfoPage from '../pages/paid'
 import SptContentCatePage from '../pages/spt/contentCate'
 import TrainingPage from '../pages/training'
@@ -144,6 +150,10 @@ function AppShell({
             <Route path="/apps/info/:id/form" element={<AppInfoFormPage />} />
             <Route path="/apps/info/:id" element={<AppInfoViewPage />} />
             <Route path="/app-info/:app_id/form" element={<AppInfoFormPage />} />
+            <Route path="/apps/ideablock" element={<IdeaBlockPage />} />
+            <Route path="/apps/ideablock/create" element={<IdeaBlockFormPage />} />
+            <Route path="/apps/ideablock/:id/form" element={<IdeaBlockFormPage />} />
+            <Route path="/apps/ideablock/:id" element={<IdeaBlockViewPage />} />
             <Route path="/apps/memo" element={<MemoPage />} />
             <Route path="/apps/calendar" element={<ScheduleCalendarPage />} />
             <Route path="/schedule" element={<SchedulePage />} />
@@ -152,6 +162,7 @@ function AppShell({
             <Route path="/files" element={<FilesPage />} />
             <Route path="/menu" element={<MenuPage />} />
             <Route path="/makerplan" element={<MakerPlanPage />} />
+            <Route path="/makerplan/3d" element={<MakerPlan3dViewerPage />} />
             <Route path="/makerplan/create" element={<MakerPlanFormPage />} />
             <Route path="/makerplan/:id/form" element={<MakerPlanFormPage />} />
             <Route path="/makerplan/:id" element={<MakerPlanViewPage />} />
@@ -159,10 +170,12 @@ function AppShell({
             <Route path="/mails/create" element={<MailFormPage />} />
             <Route path="/mails/:dataId" element={<MailViewPage />} />
             <Route path="/server" element={<ServerStatusPage />} />
+            <Route path="/server/remote" element={<ServerRemotePage />} />
             <Route path="/codes" element={<CodesPage />} />
             <Route path="/spt/cate" element={<SptContentCatePage />} />
             <Route path="/spt/resources" element={<SptResourcePage />} />
             <Route path="/baseconfig" element={<BaseConfigPage />} />
+            <Route path="/users" element={<UsersPage />} />
             <Route path="/paid" element={<PaidInfoPage />} />
             <Route path="/training" element={<TrainingPage />} />
             <Route path="/training/form" element={<TrainingFormPage />} />

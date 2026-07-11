@@ -73,8 +73,15 @@ export default function AppRoutes() {
       location.pathname.startsWith('/apps/files/')
     ) {
       setSelectedMenu('files')
+    } else if (location.pathname === '/makerplan/3d') {
+      setSelectedMenu('makerplan-3d')
+    } else if (
+      location.pathname === '/apps/ideablock' ||
+      location.pathname.startsWith('/apps/ideablock/')
+    ) {
+      setSelectedMenu('ideablock')
     } else if (location.pathname === '/makerplan' || location.pathname.startsWith('/makerplan/')) {
-      setSelectedMenu('makerplan')
+      setSelectedMenu('makerplan-list')
     } else if (location.pathname === '/schedule' || location.pathname.startsWith('/schedule/')) {
       setSelectedMenu('todo-list')
     } else if (location.pathname === '/training' || location.pathname.startsWith('/training/')) {
@@ -87,12 +94,16 @@ export default function AppRoutes() {
       setSelectedMenu('spt-resources')
     } else if (location.pathname === '/spt' || location.pathname.startsWith('/spt/')) {
       setSelectedMenu('spt-home')
+    } else if (location.pathname === '/server/remote') {
+      setSelectedMenu('server-remote')
     } else if (location.pathname === '/server' || location.pathname.startsWith('/server/')) {
-      setSelectedMenu('server')
+      setSelectedMenu('server-status')
     } else if (location.pathname === '/codes' || location.pathname.startsWith('/codes/')) {
       setSelectedMenu('codes')
     } else if (location.pathname === '/baseconfig') {
       setSelectedMenu('baseconfig')
+    } else if (location.pathname === '/users' || location.pathname.startsWith('/users/')) {
+      setSelectedMenu('users')
     } else if (location.pathname === '/paid' || location.pathname.startsWith('/paid/')) {
       setSelectedMenu('paid')
     } else if (location.pathname === '/menu' || location.pathname.startsWith('/menu/')) {
@@ -137,8 +148,12 @@ export default function AppRoutes() {
       navigate('/apps/favorite')
     } else if (menuId === 'files') {
       navigate('/files')
-    } else if (menuId === 'makerplan') {
+    } else if (menuId === 'makerplan' || menuId === 'makerplan-list') {
       navigate('/makerplan')
+    } else if (menuId === 'makerplan-3d') {
+      navigate('/makerplan/3d')
+    } else if (menuId === 'ideablock') {
+      navigate('/apps/ideablock')
     } else if (menuId === 'mails') {
       navigate('/mails')
     } else if (menuId === 'spt-home') {
@@ -147,12 +162,16 @@ export default function AppRoutes() {
       navigate('/spt/cate')
     } else if (menuId === 'spt-resources') {
       navigate('/spt/resources')
-    } else if (menuId === 'server') {
+    } else if (menuId === 'server' || menuId === 'server-status') {
       navigate('/server')
+    } else if (menuId === 'server-remote') {
+      navigate('/server/remote')
     } else if (menuId === 'codes') {
       navigate('/codes')
     } else if (menuId === 'baseconfig') {
       navigate('/baseconfig')
+    } else if (menuId === 'users') {
+      navigate('/users')
     } else if (menuId === 'paid') {
       navigate('/paid')
     } else if (menuId === 'menus') {

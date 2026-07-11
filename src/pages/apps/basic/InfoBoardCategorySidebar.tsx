@@ -20,14 +20,14 @@ function buildCategoryItems(list: ApiAppData[]) {
   return [{ key: 'all', label: '전체', count: list.length }, ...dynamicItems]
 }
 
-export function useInfoBoardCategoryItems() {
+export function useInfoBoardCategoryItems(appId = 2) {
   const [list, setList] = useState<ApiAppData[]>([])
   const [loading, setLoading] = useState(true)
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const data = await fetchAppDataListApi({ skip: 0, limit: 5000, app_id: 2 })
+        const data = await fetchAppDataListApi({ skip: 0, limit: 5000, app_id: appId })
         if (!cancelled) setList(data ?? [])
       } catch (e) {
         console.error(e)
@@ -39,13 +39,15 @@ export function useInfoBoardCategoryItems() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [appId])
   const categoryItems = useMemo(() => buildCategoryItems(list), [list])
   return { categoryItems, loading }
 }
 
 export type InfoBoardCategorySidebarProps = {
   selectedKey: string
+  appId?: number
+  basePath?: string
 }
 
 export const INFO_BOARD_LAYOUT_SX = {
@@ -76,15 +78,19 @@ export const INFO_BOARD_PAPER_SX = {
   minHeight: '100%',
 } as const
 
-export default function InfoBoardCategorySidebar({ selectedKey }: InfoBoardCategorySidebarProps) {
+export default function InfoBoardCategorySidebar({
+  selectedKey,
+  appId = 2,
+  basePath = '/apps/info',
+}: InfoBoardCategorySidebarProps) {
   const navigate = useNavigate()
-  const { categoryItems, loading } = useInfoBoardCategoryItems()
+  const { categoryItems, loading } = useInfoBoardCategoryItems(appId)
 
   const go = (key: string) => {
     if (key === 'all') {
-      navigate('/apps/info')
+      navigate(basePath)
     } else {
-      navigate(`/apps/info?category=${encodeURIComponent(key)}`)
+      navigate(`${basePath}?category=${encodeURIComponent(key)}`)
     }
   }
 

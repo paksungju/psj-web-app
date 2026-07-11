@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { 
   Box, 
   List, 
@@ -63,7 +63,16 @@ const menuItems: SidebarMenuItem[] = [
   { id: 'gallery', label: '겔러리', icon: <GalleryIcon /> },
   { id: 'files', label: '파일관리', icon: <FolderIcon /> },
   { id: 'items', label: '아이템관리', icon: <PersonIcon /> },
-  { id: 'makerplan', label: '메이커플랜', icon: <AssignmentIcon /> },
+  {
+    id: 'makerplan',
+    label: '메이커플랜',
+    icon: <AssignmentIcon />,
+    children: [
+      { id: 'makerplan-list', label: '메이커플랜' },
+      { id: 'makerplan-3d', label: '3D 파일 뷰어' },
+      { id: 'ideablock', label: '아이디어블록' },
+    ],
+  },
   {
     id: 'my-finance',
     label: '마이금융',
@@ -85,7 +94,15 @@ const menuItems: SidebarMenuItem[] = [
       { id: 'mail-daum', label: 'Daum', href: 'https://mail.daum.net' },
     ],
   },
-  { id: 'server', label: '서버상태', icon: <StorageIcon /> },
+  {
+    id: 'server',
+    label: '서버',
+    icon: <StorageIcon />,
+    children: [
+      { id: 'server-status', label: '서버상태' },
+      { id: 'server-remote', label: '원격제어' },
+    ],
+  },
   {
     id: 'apps',
     label: '앱',
@@ -93,6 +110,7 @@ const menuItems: SidebarMenuItem[] = [
     children: [
       { id: 'memo', label: '메모장' },
       { id: 'apps-accounts', label: '계정' },
+      { id: 'users', label: '사용자관리' },
       { id: 'webapps', label: '웹앱' },
       { id: 'app/configs', label: '앱설정' },
     ],
@@ -141,6 +159,14 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
   const toggleSidebar = () => {
     setCollapsed(!collapsed)
   }
+
+  useEffect(() => {
+    menuItems.forEach((item) => {
+      if (item.children?.some((child) => child.id === selectedMenu)) {
+        setOpenMenus((prev) => ({ ...prev, [item.id]: true }))
+      }
+    })
+  }, [selectedMenu])
 
   const handleMenuClick = (menuId: string) => {
     if (menuId === 'spt-home') {
@@ -219,7 +245,6 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
                         ...prev,
                         [item.id]: !prev[item.id],
                       }))
-                      handleMenuClick(item.id)
                     } else {
                       handleMenuClick(item.id)
                     }

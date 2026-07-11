@@ -634,7 +634,13 @@ export function AppDataFormPage({
           sx={INFO_BOARD_PAPER_SX}
         >
           <Box sx={INFO_BOARD_LAYOUT_SX}>
-            {!hideCategorySidebar && <InfoBoardCategorySidebar selectedKey={categorySelectedKey} />}
+            {!hideCategorySidebar && (
+              <InfoBoardCategorySidebar
+                selectedKey={categorySelectedKey}
+                appId={defaultAppId}
+                basePath={basePath}
+              />
+            )}
             <Typography color="text.secondary">로딩 중...</Typography>
           </Box>
         </Paper>
@@ -657,7 +663,13 @@ export function AppDataFormPage({
         </Typography>
 
         <Box sx={INFO_BOARD_LAYOUT_SX}>
-          {!hideCategorySidebar && <InfoBoardCategorySidebar selectedKey={categorySelectedKey} />}
+          {!hideCategorySidebar && (
+            <InfoBoardCategorySidebar
+              selectedKey={categorySelectedKey}
+              appId={defaultAppId}
+              basePath={basePath}
+            />
+          )}
           <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack spacing={2.5}>
           <Box sx={{ display: 'none' }}>

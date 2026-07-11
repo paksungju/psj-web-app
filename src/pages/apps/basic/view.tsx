@@ -60,7 +60,15 @@ function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-export default function AppDataViewPage() {
+export function AppDataViewPage({
+  basePath = '/apps/info',
+  appId = 2,
+  menuCd = 'info',
+}: {
+  basePath?: string
+  appId?: number
+  menuCd?: string
+} = {}) {
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
   const dataId = id ? parseInt(id, 10) : NaN
@@ -84,7 +92,7 @@ export default function AppDataViewPage() {
       try {
         const [res, fileRes] = await Promise.all([
           fetchAppDataByIdApi(dataId),
-          fetchFilesByDataApi({ menuCd: 'info', dataId }),
+          fetchFilesByDataApi({ menuCd, dataId }),
         ])
         if (!cancelled) {
           setData(res ?? null)
@@ -102,7 +110,7 @@ export default function AppDataViewPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [id, dataId])
+  }, [id, dataId, menuCd])
 
   if (loading) {
     return (
@@ -110,7 +118,11 @@ export default function AppDataViewPage() {
         <TopBar />
         <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
           <Box sx={INFO_BOARD_LAYOUT_SX}>
-            <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(undefined)} />
+            <InfoBoardCategorySidebar
+              selectedKey={normalizeInfoBoardCategory(undefined)}
+              appId={appId}
+              basePath={basePath}
+            />
             <Typography color="text.secondary">로딩 중...</Typography>
           </Box>
         </Paper>
@@ -124,12 +136,16 @@ export default function AppDataViewPage() {
         <TopBar />
         <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
           <Box sx={INFO_BOARD_LAYOUT_SX}>
-            <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(undefined)} />
+            <InfoBoardCategorySidebar
+              selectedKey={normalizeInfoBoardCategory(undefined)}
+              appId={appId}
+              basePath={basePath}
+            />
             <Box sx={INFO_BOARD_MAIN_SX}>
               <Typography color="text.secondary" sx={{ mb: 2 }}>
                 데이터를 찾을 수 없습니다.
               </Typography>
-              <Button variant="outlined" onClick={() => navigate('/apps/info')}>
+              <Button variant="outlined" onClick={() => navigate(basePath)}>
                 목록으로
               </Button>
             </Box>
@@ -145,7 +161,7 @@ export default function AppDataViewPage() {
     try {
       await deleteAppDataApi(data.data_id)
       setDeleteConfirmOpen(false)
-      navigate('/apps/info')
+      navigate(basePath)
     } catch (e) {
       console.error(e)
       alert(e instanceof Error ? e.message : '삭제에 실패했습니다.')
@@ -169,7 +185,11 @@ export default function AppDataViewPage() {
         sx={INFO_BOARD_PAPER_SX}
       >
         <Box sx={INFO_BOARD_LAYOUT_SX}>
-          <InfoBoardCategorySidebar selectedKey={normalizeInfoBoardCategory(data.cate1)} />
+          <InfoBoardCategorySidebar
+            selectedKey={normalizeInfoBoardCategory(data.cate1)}
+            appId={appId}
+            basePath={basePath}
+          />
           <Box sx={INFO_BOARD_MAIN_SX}>
         <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
           {data.ap_subject ?? '(제목 없음)'}
@@ -266,7 +286,7 @@ export default function AppDataViewPage() {
         <Divider sx={{ my: 2 }} />
 
         <Stack direction="row" spacing={1.5} sx={{ mt: 3, justifyContent: 'flex-end' }}>
-          <Button size="small" variant="outlined" color="inherit" onClick={() => navigate('/apps/info')}>
+          <Button size="small" variant="outlined" color="inherit" onClick={() => navigate(basePath)}>
             목 록
           </Button>
           <Button
@@ -281,7 +301,7 @@ export default function AppDataViewPage() {
             size="small"
             variant="outlined"
             color="inherit"
-            onClick={() => navigate(`/apps/info/${data.data_id}/form?reply=1`)}
+            onClick={() => navigate(`${basePath}/${data.data_id}/form?reply=1`)}
           >
             답변
           </Button>
@@ -289,7 +309,7 @@ export default function AppDataViewPage() {
             size="small"
             variant="outlined"
             color="inherit"
-            onClick={() => navigate(`/apps/info/${data.data_id}/form`)}
+            onClick={() => navigate(`${basePath}/${data.data_id}/form`)}
           >
             수 정
           </Button>
@@ -357,4 +377,8 @@ export default function AppDataViewPage() {
       </Dialog>
     </Box>
   )
+}
+
+export default function AppDataViewPageDefault() {
+  return <AppDataViewPage />
 }
