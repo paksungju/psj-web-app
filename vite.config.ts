@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       proxy: {
-        '/api': proxyOpts,
+        '/api': { ...proxyOpts, ws: true },
         '/ask-stream': { ...proxyOpts, ws: true },
         '/ask-claude': proxyOpts,
         '/ask-gemini': proxyOpts,
