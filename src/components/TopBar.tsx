@@ -4,20 +4,29 @@ import {
   InputBase,
   IconButton,
   Avatar,
+  Button,
   Menu,
   MenuItem,
+  Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { clearAuthSession } from '../utils/auth'
+import {
+  clearAuthSession,
+  formatRemaining,
+  getTokenRemainingMs,
+  refreshAuthToken,
+} from '../utils/auth'
 
 const MOBILE_HIDE_DELTA = 12
 const MOBILE_SHOW_DELTA = 10
 const TOP_EPSILON = 4
 const SCROLL_TOGGLE_COOLDOWN_MS = 300
+/** 남은 시간이 이 값 이하로 떨어지면 빨간색으로 경고 */
+const SESSION_WARN_MS = 5 * 60 * 1000
 
 /** TopBar와 사이드바 헤더가 공유하는 높이(px) */
 export const TOPBAR_HEIGHT = 56
@@ -46,6 +55,8 @@ export default function TopBar() {
   const [menuAnchorEl, setMenuAnchorEl] = useState<null | HTMLElement>(null)
   const menuOpen = Boolean(menuAnchorEl)
   const [keyword, setKeyword] = useState('')
+  const [remainingMs, setRemainingMs] = useState<number | null>(() => getTokenRemainingMs())
+  const [extending, setExtending] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -131,6 +142,41 @@ export default function TopBar() {
       if (rafId) cancelAnimationFrame(rafId)
     }
   }, [isMobile, location.pathname, setBarHiddenSafe])
+
+  // 남은 세션 시간을 1초마다 갱신. 만료되면 세션을 정리하고 로그인으로 이동
+  useEffect(() => {
+    const sync = () => setRemainingMs(getTokenRemainingMs())
+
+    sync()
+    const timerId = window.setInterval(sync, 1000)
+    window.addEventListener('auth-change', sync)
+    return () => {
+      window.clearInterval(timerId)
+      window.removeEventListener('auth-change', sync)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (remainingMs !== 0) return
+    clearAuthSession()
+    window.alert('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.')
+    navigate('/login', { replace: true })
+  }, [remainingMs, navigate])
+
+  const handleExtendSession = useCallback(async () => {
+    if (extending) return
+    setExtending(true)
+    try {
+      const ok = await refreshAuthToken()
+      if (ok) {
+        setRemainingMs(getTokenRemainingMs())
+      } else {
+        window.alert('세션 연장에 실패했습니다. 다시 로그인해 주세요.')
+      }
+    } finally {
+      setExtending(false)
+    }
+  }, [extending])
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchorEl(event.currentTarget)
@@ -227,6 +273,29 @@ export default function TopBar() {
             gap: 1,
           }}
         >
+          {remainingMs !== null && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: 13,
+                  fontVariantNumeric: 'tabular-nums',
+                  color: remainingMs <= SESSION_WARN_MS ? 'error.main' : 'text.secondary',
+                }}
+              >
+                {formatRemaining(remainingMs)}
+              </Typography>
+              <Button
+                size="small"
+                variant="text"
+                onClick={handleExtendSession}
+                disabled={extending}
+                sx={{ minWidth: 0, px: 1, fontSize: 12 }}
+              >
+                연장하기
+              </Button>
+            </Box>
+          )}
           <IconButton
             size="small"
             sx={{ color: 'text.secondary' }}

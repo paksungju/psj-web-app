@@ -90,9 +90,9 @@ const menuItems: SidebarMenuItem[] = [
     label: '메일',
     icon: <MailIcon />,
     children: [
-      { id: 'mail-naver', label: '네이버', href: 'https://mail.naver.com' },
-      { id: 'mail-google', label: 'Google', href: 'https://mail.google.com' },
-      { id: 'mail-daum', label: 'Daum', href: 'https://mail.daum.net' },
+      { id: 'mails-naver', label: '네이버' },
+      { id: 'mails-daum', label: 'Daum' },
+      { id: 'mails-gmail', label: 'G메일' },
     ],
   },
   {

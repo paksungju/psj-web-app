@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Box,
@@ -23,6 +23,8 @@ import InfoBoardCategorySidebar, {
 import { fetchFilesByDataApi, type ApiFile } from '../../../apis/fileApi'
 import CloseIcon from '@mui/icons-material/Close'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
+import 'highlight.js/styles/github.css'
+import { processContentHtml, highlightCodeBlocks, CONTENT_HTML_SX } from '../../../utils/contentHtml'
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`
@@ -32,19 +34,6 @@ function formatFileSize(bytes: number): string {
 
 function getDownloadUrl(fileId: number): string {
   return `http://impsj.net/api/v1/files/${fileId}/download`
-}
-
-/** ap_content HTML 내 이미지 src에 도메인 추가 */
-function processContentHtml(html: string): string {
-  if (!html) return ''
-  return html.replace(
-    /<img([^>]*)\ssrc=["']([^"']+)["']/gi,
-    (match, attrs: string, src: string) => {
-      if (src.startsWith('http')) return match
-      const path = src.startsWith('/') ? src : `/${src}`
-      return `<img${attrs} src="http://impsj.net${path}"`
-    },
-  )
 }
 
 function FieldRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -79,6 +68,12 @@ export function AppDataViewPage({
   const [previewImage, setPreviewImage] = useState<{ src: string; alt?: string }>({ src: '' })
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const contentRef = useRef<HTMLDivElement | null>(null)
+
+  /** 본문 렌더링 후 코드 블록에 구문 강조 적용 */
+  useEffect(() => {
+    highlightCodeBlocks(contentRef.current)
+  }, [data?.ap_content])
 
   useEffect(() => {
     if (!id || isNaN(dataId)) {
@@ -239,32 +234,10 @@ export function AppDataViewPage({
             <Box
               className="content-html"
               component="div"
+              ref={contentRef}
               onClick={handleContentImageClick}
               dangerouslySetInnerHTML={{ __html: processContentHtml(data.ap_content ?? '') }}
-              sx={{
-                overflow: 'hidden',
-                wordBreak: 'break-word',
-                '& img': {
-                  maxWidth: '100%',
-                  height: 'auto',
-                  objectFit: 'contain',
-                  cursor: 'zoom-in',
-                },
-                '& figure': {
-                  margin: '0.5em 0',
-                  maxWidth: '100%',
-                },
-                '& figure img': {
-                  maxWidth: '100%',
-                },
-                '& p': { margin: '0 0 0.75em' },
-                '& .image-style-align-left': { float: 'left', marginRight: 2, marginBottom: 1, maxWidth: '100%' },
-                '& .image-style-align-right': { float: 'right', marginLeft: 2, marginBottom: 1, maxWidth: '100%' },
-                '& .image-style-align-center': { display: 'block', marginLeft: 'auto', marginRight: 'auto', textAlign: 'center', maxWidth: '100%' },
-                '& .image-style-align-block-left': { display: 'block', marginRight: 'auto', marginLeft: 0, maxWidth: '100%' },
-                '& .image-style-align-block-right': { display: 'block', marginLeft: 'auto', marginRight: 0, maxWidth: '100%' },
-                '& figure::after': { content: '""', display: 'table', clear: 'both' },
-              }}
+              sx={{ ...CONTENT_HTML_SX, '& img': { maxWidth: '100%', height: 'auto', objectFit: 'contain', cursor: 'zoom-in' } }}
             />
           </Box>
         </Box>

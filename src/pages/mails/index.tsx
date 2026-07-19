@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Paper,
@@ -36,8 +36,25 @@ function formatDate(dateStr: string | null | undefined): string {
 
 const ROWS_PER_PAGE = 20
 
+/** 제공자별 메일함. 현재 백엔드는 네이버만 연동돼 있다. */
+const MAIL_PROVIDERS = {
+  naver: { label: '네이버', connected: true },
+  daum: { label: 'Daum', connected: false },
+  gmail: { label: 'G메일', connected: false },
+} as const
+
+type MailProvider = keyof typeof MAIL_PROVIDERS
+
+function isMailProvider(value: string | null): value is MailProvider {
+  return value != null && value in MAIL_PROVIDERS
+}
+
 export default function MailsPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const providerParam = searchParams.get('provider')
+  const provider: MailProvider = isMailProvider(providerParam) ? providerParam : 'naver'
+  const { label: providerLabel, connected } = MAIL_PROVIDERS[provider]
   const [list, setList] = useState<ApiMail[]>([])
   const [total, setTotal] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
@@ -151,8 +168,16 @@ export default function MailsPage() {
   }
 
   useEffect(() => {
-    refreshList(currentPage)
-  }, [])
+    // 미연동 제공자는 호출해봐야 네이버 메일이 돌아오므로 조회하지 않는다.
+    if (!connected) {
+      setList([])
+      setTotal(0)
+      setLoading(false)
+      return
+    }
+    setCurrentPage(1)
+    refreshList(1)
+  }, [provider, connected])
 
   return (
     <Box
@@ -188,17 +213,25 @@ export default function MailsPage() {
         }}
       >
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-          메일 목록
+          {providerLabel} 메일
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          통합 메일함입니다.
+          {connected
+            ? `${providerLabel}에서 가져온 메일 목록입니다.`
+            : `${providerLabel} 연동은 아직 준비 중입니다.`}
         </Typography>
 
+        {!connected && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            {providerLabel} 계정 연동이 아직 설정되지 않았습니다. 현재는 네이버 메일만 가져올 수 있습니다.
+          </Alert>
+        )}
+
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-          <Button size="small" variant="outlined" color="inherit" onClick={handleImport}>
+          <Button size="small" variant="outlined" color="inherit" onClick={handleImport} disabled={!connected}>
             가져오기
           </Button>
-          <Button size="small" variant="outlined" color="inherit" onClick={() => refreshList()}>
+          <Button size="small" variant="outlined" color="inherit" onClick={() => refreshList()} disabled={!connected}>
             새로고침
           </Button>
           <Button size="small" variant="outlined" color="inherit" onClick={handleWriteMail}>

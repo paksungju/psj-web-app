@@ -8,22 +8,8 @@ import {
   Button,
   Stack,
 } from '@mui/material'
-import { CKEditor } from '@ckeditor/ckeditor5-react'
-import {
-  ClassicEditor,
-  Essentials,
-  Paragraph,
-  Bold,
-  Italic,
-  Image,
-  ImageInsert,
-  ImageResize,
-  ImageToolbar,
-  ImageStyle,
-  Alignment,
-  GeneralHtmlSupport,
-} from 'ckeditor5'
-import 'ckeditor5/ckeditor5.css'
+import { type Editor } from 'ckeditor5'
+import RichTextEditor from '../../components/RichTextEditor'
 import TopBar from '../../components/TopBar'
 import { sendMailApi } from '../../apis/mailApi'
 
@@ -37,7 +23,7 @@ function extractEmail(str: string): string {
 export default function MailFormPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const editorRef = useRef<unknown>(null)
+  const editorRef = useRef<Editor | null>(null)
   const state = (location.state as { replyTo?: string; replySubject?: string; replyBody?: string } | null) ?? {}
   const [to, setTo] = useState(() => (state?.replyTo ? extractEmail(state.replyTo) : ''))
   const [subject, setSubject] = useState(() => state?.replySubject ?? '')
@@ -98,52 +84,16 @@ export default function MailFormPage() {
               placeholder="제목을 입력하세요"
               fullWidth
             />
-            <Box sx={{ '& .ck-editor__editable': { minHeight: 200 } }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                내용
-              </Typography>
-              <CKEditor
-                editor={ClassicEditor}
-                data={body}
-                config={{
-                  licenseKey: 'GPL',
-                  plugins: [Essentials, Paragraph, Bold, Italic, Image, ImageInsert, ImageResize, ImageToolbar, ImageStyle, Alignment, GeneralHtmlSupport],
-                  toolbar: ['undo', 'redo', '|', 'bold', 'italic', '|', 'alignment:left', 'alignment:center', 'alignment:right', 'alignment:justify', '|', 'insertImage'],
-                  htmlSupport: {
-                    allow: [
-                      { name: /.*/, attributes: true, classes: true, styles: true },
-                    ],
-                  },
-                  image: {
-                    resizeOptions: [
-                      { name: 'resizeImage:original', value: null, icon: 'original' },
-                      { name: 'resizeImage:25', value: '25', icon: 'small' },
-                      { name: 'resizeImage:50', value: '50', icon: 'medium' },
-                      { name: 'resizeImage:75', value: '75', icon: 'large' },
-                      { name: 'resizeImage:custom', value: 'custom', icon: 'custom' },
-                    ],
-                    styles: {
-                      options: ['inline', 'alignLeft', 'alignRight', 'alignCenter', 'alignBlockLeft', 'alignBlockRight', 'block'],
-                    },
-                    toolbar: [
-                      'resizeImage:25', 'resizeImage:50', 'resizeImage:75', 'resizeImage:original', 'resizeImage:custom',
-                      '|',
-                      'imageStyle:wrapText',
-                      'imageStyle:breakText',
-                      '|',
-                      'imageStyle:alignLeft', 'imageStyle:alignRight', 'imageStyle:alignCenter',
-                      'imageStyle:alignBlockLeft', 'imageStyle:alignBlockRight',
-                    ],
-                  },
-                }}
-                onReady={(editor) => {
-                  ;(editorRef as React.MutableRefObject<typeof editor | null>).current = editor
-                }}
-                onChange={(_evt, editor) => {
-                  setBody(editor.getData())
-                }}
-              />
-            </Box>
+            <RichTextEditor
+              label="내용"
+              minHeight={200}
+              value={body}
+              onChange={setBody}
+              onReady={(editor) => { editorRef.current = editor }}
+              fontColor={false}
+              // 메일 본문은 외부 HTML을 그대로 붙여넣는 경우가 있어 전체 태그를 허용한다.
+              htmlSupportAllow={[{ name: /.*/, attributes: true, classes: true, styles: true }]}
+            />
 
             {error && (
               <Typography color="error" variant="body2">

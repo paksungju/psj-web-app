@@ -10,21 +10,8 @@ import {
   IconButton,
 } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import { CKEditor } from '@ckeditor/ckeditor5-react'
-import {
-  ClassicEditor,
-  Essentials,
-  Paragraph,
-  Bold,
-  Italic,
-  Image,
-  ImageInsert,
-  ImageResize,
-  ImageToolbar,
-  ImageStyle,
-  Alignment,
-} from 'ckeditor5'
-import 'ckeditor5/ckeditor5.css'
+import { type Editor } from 'ckeditor5'
+import RichTextEditor from '../../components/RichTextEditor'
 import TopBar from '../../components/TopBar'
 import {
   fetchAppDataByIdApi,
@@ -148,7 +135,7 @@ export default function TrainingFormPage() {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
   const addingToSlotRef = useRef<number>(0)
-  const editorRef = useRef<{ execute: (cmd: string, opts?: { source?: string | string[] }) => void; getData: () => string; setData: (data: string) => void } | null>(null)
+  const editorRef = useRef<Editor | null>(null)
 
   const effectiveDataId = isEdit ? (form.data_id ?? dataId ?? 0) : 0
   const appId = 8
@@ -641,48 +628,14 @@ export default function TrainingFormPage() {
               />
             </Box>
 
-            <Box>
-              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>내용</Typography>
-              <Box sx={{ '& .ck-editor': { backgroundColor: 'grey.50' }, '& .ck.ck-editor__editable': { minHeight: 300 } }}>
-                <CKEditor
-                  key={loading ? 'loading' : `edit-${form.data_id ?? 'new'}`}
-                  editor={ClassicEditor}
-                  data={form.ap_content ?? ''}
-                  config={{
-                    licenseKey: 'GPL',
-                    plugins: [Essentials, Paragraph, Bold, Italic, Image, ImageInsert, ImageResize, ImageToolbar, ImageStyle, Alignment],
-                    toolbar: ['undo', 'redo', '|', 'bold', 'italic', '|', 'alignment:left', 'alignment:center', 'alignment:right', 'alignment:justify', '|', 'insertImage'],
-                    image: {
-                      resizeOptions: [
-                        { name: 'resizeImage:original', value: null, icon: 'original' },
-                        { name: 'resizeImage:25', value: '25', icon: 'small' },
-                        { name: 'resizeImage:50', value: '50', icon: 'medium' },
-                        { name: 'resizeImage:75', value: '75', icon: 'large' },
-                        { name: 'resizeImage:custom', value: 'custom', icon: 'custom' },
-                      ],
-                      styles: {
-                        options: ['inline', 'alignLeft', 'alignRight', 'alignCenter', 'alignBlockLeft', 'alignBlockRight', 'block'],
-                      },
-                      toolbar: [
-                        'resizeImage:25', 'resizeImage:50', 'resizeImage:75', 'resizeImage:original', 'resizeImage:custom',
-                        '|',
-                        'imageStyle:wrapText',
-                        'imageStyle:breakText',
-                        '|',
-                        'imageStyle:alignLeft', 'imageStyle:alignRight', 'imageStyle:alignCenter',
-                        'imageStyle:alignBlockLeft', 'imageStyle:alignBlockRight',
-                      ],
-                    },
-                  }}
-                  onReady={(editor) => {
-                    ;(editorRef as React.MutableRefObject<typeof editor | null>).current = editor
-                  }}
-                  onChange={(_evt, editor) => {
-                    setForm((prev) => ({ ...prev, ap_content: editor.getData() }))
-                  }}
-                />
-              </Box>
-            </Box>
+            <RichTextEditor
+              label="내용"
+              editorKey={loading ? 'loading' : `edit-${form.data_id ?? 'new'}`}
+              value={form.ap_content ?? ''}
+              onChange={(data) => setForm((prev) => ({ ...prev, ap_content: data }))}
+              onReady={(editor) => { editorRef.current = editor }}
+              fontColor={false}
+            />
 
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>이미지</Typography>

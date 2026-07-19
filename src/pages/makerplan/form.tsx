@@ -19,9 +19,8 @@ import ScienceIcon from '@mui/icons-material/Science'
 import ConstructionIcon from '@mui/icons-material/Construction'
 import RateReviewIcon from '@mui/icons-material/RateReview'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import { CKEditor } from '@ckeditor/ckeditor5-react'
-import { ClassicEditor, Essentials, Paragraph, Bold, Italic, Image, ImageInsert, ImageResize, ImageToolbar, ImageStyle, Alignment } from 'ckeditor5'
-import 'ckeditor5/ckeditor5.css'
+import { type Editor } from 'ckeditor5'
+import RichTextEditor from '../../components/RichTextEditor'
 import TopBar from '../../components/TopBar'
 import {
   fetchAppDataByIdApi,
@@ -166,7 +165,7 @@ export default function MakerPlanFormPage() {
   const [selectedFileId, setSelectedFileId] = useState<string | number | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const editorRef = useRef<{ execute: (cmd: string, opts?: { source?: string | string[] }) => void } | null>(null)
+  const editorRef = useRef<Editor | null>(null)
 
   const menuCd = 'makerplan'
   const effectiveDataId = selectedStepDataId ?? (!isCreate && !isNaN(dataId) ? dataId : 0)
@@ -844,50 +843,15 @@ export default function MakerPlanFormPage() {
             />
           </Box>
 
-          <Box>
-            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-              설명
-            </Typography>
-            <Box sx={{ '& .ck-editor': { backgroundColor: 'grey.50' }, '& .ck.ck-editor__editable': { minHeight: 240 } }}>
-              <CKEditor
-                key={loading ? 'loading' : `makerplan-${selectedStepDataId ?? dataId ?? 'new'}`}
-                editor={ClassicEditor}
-                data={form.ap_content ?? ''}
-                config={{
-                  licenseKey: 'GPL',
-                  plugins: [Essentials, Paragraph, Bold, Italic, Image, ImageInsert, ImageResize, ImageToolbar, ImageStyle, Alignment],
-                  toolbar: ['undo', 'redo', '|', 'bold', 'italic', '|', 'alignment:left', 'alignment:center', 'alignment:right', 'alignment:justify', '|', 'insertImage'],
-                  image: {
-                    resizeOptions: [
-                      { name: 'resizeImage:original', value: null, icon: 'original' },
-                      { name: 'resizeImage:25', value: '25', icon: 'small' },
-                      { name: 'resizeImage:50', value: '50', icon: 'medium' },
-                      { name: 'resizeImage:75', value: '75', icon: 'large' },
-                      { name: 'resizeImage:custom', value: 'custom', icon: 'custom' },
-                    ],
-                    styles: {
-                      options: ['inline', 'alignLeft', 'alignRight', 'alignCenter', 'alignBlockLeft', 'alignBlockRight', 'block'],
-                    },
-                    toolbar: [
-                      'resizeImage:25', 'resizeImage:50', 'resizeImage:75', 'resizeImage:original', 'resizeImage:custom',
-                      '|',
-                      'imageStyle:wrapText',
-                      'imageStyle:breakText',
-                      '|',
-                      'imageStyle:alignLeft', 'imageStyle:alignRight', 'imageStyle:alignCenter',
-                      'imageStyle:alignBlockLeft', 'imageStyle:alignBlockRight',
-                    ],
-                  },
-                }}
-                onReady={(editor) => {
-                  ;(editorRef as React.MutableRefObject<typeof editor | null>).current = editor
-                }}
-                onChange={(_evt, editor) => {
-                  setForm((prev) => ({ ...prev, ap_content: editor.getData() }))
-                }}
-              />
-            </Box>
-          </Box>
+          <RichTextEditor
+            label="설명"
+            minHeight={240}
+            editorKey={loading ? 'loading' : `makerplan-${selectedStepDataId ?? dataId ?? 'new'}`}
+            value={form.ap_content ?? ''}
+            onChange={(data) => setForm((prev) => ({ ...prev, ap_content: data }))}
+            onReady={(editor) => { editorRef.current = editor }}
+            fontColor={false}
+          />
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>

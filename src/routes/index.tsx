@@ -124,7 +124,9 @@ export default function AppRoutes() {
     } else if (location.pathname === '/training' || location.pathname.startsWith('/training/')) {
       setSelectedMenu('training')
     } else if (location.pathname === '/mails' || location.pathname.startsWith('/mails/')) {
-      setSelectedMenu('mails')
+      // 제공자별 하위 메뉴가 선택되도록 쿼리의 provider를 함께 본다.
+      const provider = new URLSearchParams(location.search).get('provider')
+      setSelectedMenu(provider ? `mails-${provider}` : 'mails')
     } else if (location.pathname === '/spt/cate') {
       setSelectedMenu('spt-cate')
     } else if (location.pathname === '/spt/resources') {
@@ -146,7 +148,7 @@ export default function AppRoutes() {
     } else if (location.pathname === '/menu' || location.pathname.startsWith('/menu/')) {
       setSelectedMenu('menus')
     }
-  }, [location.pathname])
+  }, [location.pathname, location.search])
 
   const handleMenuSelect = (menuId: string) => {
     setSelectedMenu(menuId)
@@ -193,6 +195,12 @@ export default function AppRoutes() {
       navigate('/apps/ideablock')
     } else if (menuId === 'mails') {
       navigate('/mails')
+    } else if (menuId === 'mails-naver') {
+      navigate('/mails?provider=naver')
+    } else if (menuId === 'mails-daum') {
+      navigate('/mails?provider=daum')
+    } else if (menuId === 'mails-gmail') {
+      navigate('/mails?provider=gmail')
     } else if (menuId === 'spt-home') {
       navigate('/spt')
     } else if (menuId === 'spt-cate') {
