@@ -32,6 +32,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment'
 import MenuIcon from '@mui/icons-material/Menu'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import { TOPBAR_HEIGHT } from './TopBar'
 
 interface SidebarProps {
   selectedMenu: string
@@ -197,13 +198,15 @@ export default function Sidebar({ selectedMenu, onMenuSelect, mobileOpen, onMobi
       {/* Header */}
       <Box
         sx={{
-          p: 2,
+          px: 2,
+          py: 0,
           borderBottom: '1px solid',
           borderColor: 'divider',
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'space-between',
-          minHeight: 64,
+          height: TOPBAR_HEIGHT,
+          flexShrink: 0,
         }}
       >
         {(!collapsed || isMobile) && (

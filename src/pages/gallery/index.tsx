@@ -390,11 +390,11 @@ export default function GalleryPage() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3, flexWrap: 'wrap' }}>
           <Button
             size="small"
-            variant="contained"
-            color="primary"
+            variant={showDropZone ? 'contained' : 'outlined'}
+            color={showDropZone ? 'primary' : 'inherit'}
             onClick={() => setShowDropZone((prev) => !prev)}
           >
-            업로드
+            {showDropZone ? '- 파일추가 취소' : '+ 파일추가'}
           </Button>
           <Button
             size="small"

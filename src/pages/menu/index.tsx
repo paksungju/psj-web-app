@@ -83,7 +83,6 @@ export default function MenuPage() {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
   const [selectedMenuId, setSelectedMenuId] = useState<number | null>(null)
   const [formParentId, setFormParentId] = useState<number | null>(null)
-  const [pendingSortSaveIds, setPendingSortSaveIds] = useState<Set<number>>(() => new Set())
   const [savingSort, setSavingSort] = useState(false)
 
   const selectedNode = useMemo(() => {
@@ -191,7 +190,6 @@ export default function MenuPage() {
   const refresh = async () => {
     const rows = await fetchMenusApi({ skip: 0, limit: 500 })
     setMenus(rows)
-    setPendingSortSaveIds(new Set())
   }
 
   const getSiblingsSorted = (menuId: number) => {
@@ -203,24 +201,39 @@ export default function MenuPage() {
       .sort((a, b) => (a.sort_no - b.sort_no) || (b.menu_id - a.menu_id))
   }
 
-  const moveTreeSibling = (dir: 'up' | 'down') => {
-    if (selectedMenuId == null) return
+  /** 형제 메뉴들을 전달된 순서대로 sort_no = 1..n 재부여하고 서버에 즉시 저장 */
+  const persistSiblingOrder = async (orderedSiblings: ApiMenuRow[]) => {
+    const items = orderedSiblings.map((m, i) => ({ menu_id: m.menu_id, sort_no: i + 1 }))
+    setMenus((prev) =>
+      prev.map((m) => {
+        const found = items.find((it) => it.menu_id === m.menu_id)
+        return found ? { ...m, sort_no: found.sort_no } : m
+      }),
+    )
+    await saveMenusSortOrderApi(items)
+  }
+
+  const moveTreeSibling = async (dir: 'up' | 'down') => {
+    if (selectedMenuId == null || savingSort) return
     const sibs = getSiblingsSorted(selectedMenuId)
     const idx = sibs.findIndex((m) => m.menu_id === selectedMenuId)
     if (idx < 0) return
     const j = dir === 'up' ? idx - 1 : idx + 1
     if (j < 0 || j >= sibs.length) return
-    const a = sibs[idx]
-    const b = sibs[j]
-    if (!a || !b) return
-    setMenus((prev) =>
-      prev.map((m) => {
-        if (m.menu_id === a.menu_id) return { ...m, sort_no: b.sort_no }
-        if (m.menu_id === b.menu_id) return { ...m, sort_no: a.sort_no }
-        return m
-      }),
-    )
-    setPendingSortSaveIds((prev) => new Set([...prev, a.menu_id, b.menu_id]))
+    const reordered = [...sibs]
+    const [moved] = reordered.splice(idx, 1)
+    if (!moved) return
+    reordered.splice(j, 0, moved)
+    setSavingSort(true)
+    try {
+      await persistSiblingOrder(reordered)
+    } catch (e) {
+      console.error(e)
+      window.alert('순서 저장에 실패했습니다.')
+      await refresh()
+    } finally {
+      setSavingSort(false)
+    }
   }
 
   const siblingIndexInfo = useMemo(() => {
@@ -234,35 +247,6 @@ export default function MenuPage() {
     const idx = sibs.findIndex((m) => m.menu_id === selectedMenuId)
     return { idx, len: sibs.length }
   }, [menus, selectedMenuId])
-
-  const handleSaveTreeOrder = async () => {
-    if (pendingSortSaveIds.size === 0) {
-      window.alert('저장할 순서 변경이 없습니다.')
-      return
-    }
-    setSavingSort(true)
-    try {
-      const items = Array.from(pendingSortSaveIds)
-        .map((id) => {
-          const m = menus.find((x) => x.menu_id === id)
-          return m ? { menu_id: m.menu_id, sort_no: m.sort_no } : null
-        })
-        .filter((x): x is { menu_id: number; sort_no: number } => x != null)
-      if (items.length === 0) {
-        window.alert('저장할 항목이 없습니다.')
-        return
-      }
-      await saveMenusSortOrderApi(items)
-      setPendingSortSaveIds(new Set())
-      window.alert('순서가 저장되었습니다.')
-      await refresh()
-    } catch (e) {
-      console.error(e)
-      window.alert('순서 저장에 실패했습니다.')
-    } finally {
-      setSavingSort(false)
-    }
-  }
 
   const handleSave = async () => {
     const me_subject = form.me_subject.trim()
@@ -403,44 +387,62 @@ export default function MenuPage() {
                 </List>
                 <Stack
                   direction="row"
-                  spacing={1}
-                  flexWrap="wrap"
+                  spacing={2}
+                  alignItems="center"
                   sx={{
-                    px: 1,
+                    px: 1.5,
                     py: 1,
                     borderTop: 1,
                     borderColor: 'divider',
                     justifyContent: 'flex-start',
                   }}
                 >
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    disabled={selectedMenuId == null || siblingIndexInfo.idx <= 0}
-                    onClick={() => moveTreeSibling('up')}
-                  >
-                    위로
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    disabled={
-                      selectedMenuId == null ||
-                      siblingIndexInfo.idx < 0 ||
-                      siblingIndexInfo.idx >= siblingIndexInfo.len - 1
-                    }
-                    onClick={() => moveTreeSibling('down')}
-                  >
-                    아래로
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    disabled={pendingSortSaveIds.size === 0 || savingSort}
-                    onClick={() => void handleSaveTreeOrder()}
-                  >
-                    {savingSort ? '저장 중…' : '저장'}
-                  </Button>
+                  {(() => {
+                    const canUp =
+                      selectedMenuId != null && siblingIndexInfo.idx > 0 && !savingSort
+                    const canDown =
+                      selectedMenuId != null &&
+                      siblingIndexInfo.idx >= 0 &&
+                      siblingIndexInfo.idx < siblingIndexInfo.len - 1 &&
+                      !savingSort
+                    return (
+                      <>
+                        <Typography
+                          variant="body2"
+                          onClick={() => {
+                            if (canUp) void moveTreeSibling('up')
+                          }}
+                          sx={{
+                            cursor: canUp ? 'pointer' : 'default',
+                            color: canUp ? 'primary.main' : 'text.disabled',
+                            userSelect: 'none',
+                            '&:hover': canUp ? { textDecoration: 'underline' } : undefined,
+                          }}
+                        >
+                          위로
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          onClick={() => {
+                            if (canDown) void moveTreeSibling('down')
+                          }}
+                          sx={{
+                            cursor: canDown ? 'pointer' : 'default',
+                            color: canDown ? 'primary.main' : 'text.disabled',
+                            userSelect: 'none',
+                            '&:hover': canDown ? { textDecoration: 'underline' } : undefined,
+                          }}
+                        >
+                          아래로
+                        </Typography>
+                        {savingSort && (
+                          <Typography variant="caption" color="text.secondary">
+                            저장 중…
+                          </Typography>
+                        )}
+                      </>
+                    )
+                  })()}
                 </Stack>
               </Paper>
 

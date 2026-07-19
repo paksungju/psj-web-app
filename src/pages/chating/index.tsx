@@ -9,6 +9,7 @@ import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import TopBar from '../../components/TopBar'
 import { randomUUID } from '../../utils/randomUUID'
+import { AUTH_TOKEN_KEY, clearAuthSession } from '../../utils/auth'
 
 // ── 세션 ID 관리 ──────────────────────────────────────────────────────────────
 const SESSION_KEY = 'chat_session_id'
@@ -48,8 +49,6 @@ interface SessionItem {
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 const CHAT_PAGE_SIZE = 10
-/** 로그인 페이지와 동일 키 — 채팅 저장 시 DB message JSON에 로그인 id 넣기 위해 Bearer 전달 */
-const AUTH_TOKEN_KEY = 'auth_token'
 
 function chatAuthHeaders(): Record<string, string> {
   if (typeof localStorage === 'undefined') return {}
@@ -75,9 +74,7 @@ async function readFastApiErrorDetail(res: Response): Promise<string> {
 }
 
 function clearAuthAndNavigateToLogin(navigate: NavigateFunction): void {
-  localStorage.removeItem(AUTH_TOKEN_KEY)
-  localStorage.removeItem('isLoggedIn')
-  window.dispatchEvent(new Event('auth-change'))
+  clearAuthSession()
   navigate('/login', { replace: true })
 }
 

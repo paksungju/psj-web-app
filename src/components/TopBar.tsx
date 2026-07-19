@@ -12,12 +12,15 @@ import {
 import SearchIcon from '@mui/icons-material/Search'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { clearAuthSession } from '../utils/auth'
 
-const LOGIN_PASSWORD_SESSION_KEY = 'login_password'
 const MOBILE_HIDE_DELTA = 12
 const MOBILE_SHOW_DELTA = 10
 const TOP_EPSILON = 4
 const SCROLL_TOGGLE_COOLDOWN_MS = 300
+
+/** TopBar와 사이드바 헤더가 공유하는 높이(px) */
+export const TOPBAR_HEIGHT = 56
 
 function getScrollTopFromEvent(event: Event): { target: HTMLElement | Window; scrollTop: number } | null {
   const { target } = event
@@ -138,10 +141,7 @@ export default function TopBar() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('isLoggedIn')
-    sessionStorage.removeItem(LOGIN_PASSWORD_SESSION_KEY)
-    window.dispatchEvent(new Event('auth-change'))
+    clearAuthSession()
     handleMenuClose()
     navigate('/login', { replace: true })
   }
@@ -163,9 +163,10 @@ export default function TopBar() {
     <Box
       ref={barRef}
       sx={{
-        position: 'sticky',
-        top: 0,
+        position: 'relative',
         zIndex: (t) => t.zIndex.appBar,
+        mt: { xs: -1.5, sm: -2, md: -3 },
+        mx: { xs: -1.5, sm: -2, md: -3 },
         mb: 4,
         flexShrink: 0,
         overflow: 'hidden',
@@ -178,6 +179,10 @@ export default function TopBar() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 2,
+          px: { xs: 1.5, sm: 2, md: 3 },
+          height: TOPBAR_HEIGHT,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
           bgcolor: 'background.paper',
           transform: isMobile && barHidden ? 'translateY(-100%)' : 'translateY(0)',
           transition: isMobile ? 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
@@ -197,7 +202,7 @@ export default function TopBar() {
             alignItems: 'center',
             gap: 1.5,
             px: 2,
-            py: 1,
+            py: 0.8,
             borderRadius: 999,
             backgroundColor: 'grey.50',
             border: '1px solid',
@@ -206,7 +211,7 @@ export default function TopBar() {
         >
           <SearchIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
           <InputBase
-            sx={{ width: '100%', fontSize: 14 }}
+            sx={{ width: '60%', fontSize: 11 }}
             placeholder="Ctrl+G 키를 눌러 채팅 또는 채널로 바로 이동하기"
             inputProps={{ 'aria-label': 'global quick search' }}
             value={keyword}

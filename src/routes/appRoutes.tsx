@@ -21,7 +21,7 @@ import MenuPage from '../pages/menu'
 import MakerPlanPage from '../pages/makerplan'
 import MakerPlanFormPage from '../pages/makerplan/form'
 import MakerPlanViewPage from '../pages/makerplan/view'
-import MakerPlan3dViewerPage from '../pages/makerplan/viewer3d'
+import MakerPlan3dIndexPage from '../pages/makerplan/index3d'
 import AccountsPage from '../pages/accounts'
 import ItemsPage from '../pages/items'
 import AppsInfoPage from '../pages/apps/basic'
@@ -162,7 +162,8 @@ function AppShell({
             <Route path="/files" element={<FilesPage />} />
             <Route path="/menu" element={<MenuPage />} />
             <Route path="/makerplan" element={<MakerPlanPage />} />
-            <Route path="/makerplan/3d" element={<MakerPlan3dViewerPage />} />
+            <Route path="/makerplan/3d" element={<MakerPlan3dIndexPage />} />
+            <Route path="/makerplan/3d/:id" element={<MakerPlan3dIndexPage />} />
             <Route path="/makerplan/create" element={<MakerPlanFormPage />} />
             <Route path="/makerplan/:id/form" element={<MakerPlanFormPage />} />
             <Route path="/makerplan/:id" element={<MakerPlanViewPage />} />

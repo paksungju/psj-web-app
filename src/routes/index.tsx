@@ -4,13 +4,17 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import AuthenticatedAppRoutes from './appRoutes'
 import AuthRoutes from './authRoutes'
 import SptRoutes from './sptRoutes'
+import {
+  getAuthToken,
+  hasValidAuthSession,
+  readTokenExpMs,
+  redirectToLoginIfExpired,
+} from '../utils/auth'
 
 export default function AppRoutes() {
   const [selectedMenu, setSelectedMenu] = useState('home')
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    () => localStorage.getItem('isLoggedIn') === 'true' || Boolean(localStorage.getItem('auth_token')),
-  )
+  const [isAuthenticated, setIsAuthenticated] = useState(() => hasValidAuthSession())
   const appTheme = useTheme()
   const isMobile = useMediaQuery(appTheme.breakpoints.down('md'))
   const location = useLocation()
@@ -18,19 +22,52 @@ export default function AppRoutes() {
 
   useEffect(() => {
     const syncAuthState = () => {
-      setIsAuthenticated(
-        localStorage.getItem('isLoggedIn') === 'true' || Boolean(localStorage.getItem('auth_token')),
-      )
+      if (
+        redirectToLoginIfExpired(() => {
+          navigate('/login', { replace: true })
+        })
+      ) {
+        setIsAuthenticated(false)
+        return
+      }
+      setIsAuthenticated(hasValidAuthSession())
     }
 
     syncAuthState()
     window.addEventListener('storage', syncAuthState)
     window.addEventListener('auth-change', syncAuthState as EventListener)
+    window.addEventListener('focus', syncAuthState)
+    document.addEventListener('visibilitychange', syncAuthState)
     return () => {
       window.removeEventListener('storage', syncAuthState)
       window.removeEventListener('auth-change', syncAuthState as EventListener)
+      window.removeEventListener('focus', syncAuthState)
+      document.removeEventListener('visibilitychange', syncAuthState)
     }
-  }, [])
+  }, [navigate])
+
+  // 토큰 exp 시각에 맞춰 자동 로그아웃
+  useEffect(() => {
+    if (!isAuthenticated) return
+    const token = getAuthToken()
+    if (!token) return
+    const expMs = readTokenExpMs(token)
+    if (expMs == null) return
+    const delay = Math.max(expMs - Date.now(), 0)
+    const timer = window.setTimeout(() => {
+      redirectToLoginIfExpired(() => {
+        navigate('/login', { replace: true })
+      })
+      setIsAuthenticated(false)
+    }, delay)
+    return () => window.clearTimeout(timer)
+  }, [isAuthenticated, navigate, location.pathname])
+
+  useEffect(() => {
+    redirectToLoginIfExpired(() => {
+      navigate('/login', { replace: true })
+    })
+  }, [location.pathname, navigate])
 
   useEffect(() => {
     if (location.pathname === '/search') {

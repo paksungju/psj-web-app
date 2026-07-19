@@ -34,6 +34,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import TopBar from '../../components/TopBar'
 import { getApiPrefix } from '../../apis/apiPrefix'
+import { readTokenExpMs } from '../../utils/auth'
 import {
   ServerHost,
   ServerHostPayload,
@@ -59,17 +60,6 @@ function getShellWsUrl(token: string, hostId?: number | null): string {
   return url
 }
 
-function readTokenExpMs(token: string): number | null {
-  try {
-    const payload = token.split('.')[1]
-    if (!payload) return null
-    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
-    if (typeof json.exp !== 'number') return null
-    return json.exp * 1000
-  } catch {
-    return null
-  }
-}
 
 const EMPTY_FORM: ServerHostPayload = {
   label: '',

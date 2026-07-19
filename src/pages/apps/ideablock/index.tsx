@@ -364,12 +364,12 @@ export default function IdeaBlockPage() {
     <Box sx={INFO_BOARD_PAGE_SX}>
       <TopBar />
       <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
           아이디어블록
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        {/* <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           왼쪽에서 컨텐츠를 선택하면 블록 목록이 표시됩니다. 블록등록은 선택한 컨텐츠의 답변글로 저장됩니다.
-        </Typography>
+        </Typography> */}
 
         <Stack direction="row" spacing={1} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
           <Button
@@ -479,6 +479,7 @@ export default function IdeaBlockPage() {
                           noWrap
                           sx={{
                             fontWeight: selectedContentId === item.data_id ? 700 : 500,
+                            color: selectedContentId === item.data_id ? 'primary.main' : 'inherit',
                           }}
                         >
                           {item.ap_subject?.trim() || '(제목 없음)'}
