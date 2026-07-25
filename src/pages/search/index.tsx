@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Box, Paper, Typography, Button, TextField, InputAdornment, CircularProgress } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
-import TopBar from '../../components/TopBar'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApiSearch, fetchSearchApi } from '../../apis/searchApi'
 
@@ -75,7 +74,6 @@ export default function SearchPage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

@@ -18,7 +18,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import MenuFolderIcon from '../../components/MenuFolderIcon'
 import {
   createMenuApi,
@@ -334,8 +333,6 @@ export default function MenuPage() {
 
   return (
     <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}>
-      <TopBar />
-
       <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
         <Paper
           elevation={0}

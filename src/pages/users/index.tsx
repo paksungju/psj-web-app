@@ -16,7 +16,6 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import {
   createUserApi,
   deleteUserApi,
@@ -257,7 +256,6 @@ export default function UsersPage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

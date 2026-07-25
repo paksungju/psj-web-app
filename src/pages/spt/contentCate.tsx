@@ -21,7 +21,6 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import AddIcon from '@mui/icons-material/Add'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
@@ -397,7 +396,6 @@ export default function SptContentCatePage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Box
         sx={{
           flexGrow: 1,

@@ -5,7 +5,6 @@ import HistoryIcon from '@mui/icons-material/History'
 import PersonIcon from '@mui/icons-material/Person'
 import SettingsIcon from '@mui/icons-material/Settings'
 import CalendarPage from '../pages/schedule/calendar'
-import TopBar from './TopBar'
 
 interface HomeScreenProps {
   selectedMenu: string
@@ -55,9 +54,6 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
       }}
     >
       {/* 상단 공통 검색/빠른 이동 바 */}
-      <TopBar />
-
-
       <Paper
         elevation={0}
         sx={{

@@ -8,7 +8,6 @@ import {
   Button,
   Stack,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import {
   fetchAppConfigApi,
   createAppConfigApi,
@@ -134,7 +133,6 @@ export default function WebappFormPage() {
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Typography color="text.secondary">로딩 중...</Typography>
       </Box>
     )
@@ -142,7 +140,6 @@ export default function WebappFormPage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

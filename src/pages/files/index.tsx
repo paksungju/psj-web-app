@@ -35,7 +35,6 @@ import TableChartIcon from '@mui/icons-material/TableChart'
 import SlideshowIcon from '@mui/icons-material/Slideshow'
 import CodeIcon from '@mui/icons-material/Code'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import TopBar from '../../components/TopBar'
 import {
   uploadFileApiChunkedWithProgress,
   fetchFilesByDataApi,
@@ -343,7 +342,6 @@ export default function GalleryPage() {
         p: 3,
       }}
     >
-      <TopBar />
       {isDeleting && (
         <Box
           sx={{

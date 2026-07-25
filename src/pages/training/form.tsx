@@ -12,7 +12,6 @@ import {
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { type Editor } from 'ckeditor5'
 import RichTextEditor from '../../components/RichTextEditor'
-import TopBar from '../../components/TopBar'
 import {
   fetchAppDataByIdApi,
   createAppDataApi,
@@ -585,7 +584,6 @@ export default function TrainingFormPage() {
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Paper elevation={0} sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper' }}>
           <Typography color="text.secondary">로딩 중...</Typography>
         </Paper>
@@ -595,7 +593,6 @@ export default function TrainingFormPage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper', width: '50%' }}

@@ -11,7 +11,6 @@ import {
   TableRow,
   Button,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import { fetchAppConfigsApi, type ApiAppConfig } from '../../apis/appConfigApi'
 
 export default function WebappsPage() {
@@ -43,7 +42,6 @@ export default function WebappsPage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

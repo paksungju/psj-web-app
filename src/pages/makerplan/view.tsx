@@ -20,7 +20,6 @@ import ScienceIcon from '@mui/icons-material/Science'
 import ConstructionIcon from '@mui/icons-material/Construction'
 import RateReviewIcon from '@mui/icons-material/RateReview'
 import CloseIcon from '@mui/icons-material/Close'
-import TopBar from '../../components/TopBar'
 import { fetchAppDataByIdApi, fetchAppDataListApi, type ApiAppData } from '../../apis/appApi'
 
 function isAbsoluteWebHref(href: string): boolean {
@@ -323,7 +322,6 @@ export default function MakerPlanViewPage() {
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Typography color="text.secondary">로딩 중...</Typography>
       </Box>
     )
@@ -332,7 +330,6 @@ export default function MakerPlanViewPage() {
   if (!data) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
           <Typography color="text.secondary" sx={{ mb: 2 }}>
             데이터를 찾을 수 없습니다.
@@ -354,7 +351,6 @@ export default function MakerPlanViewPage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

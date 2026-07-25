@@ -29,10 +29,17 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ComputerIcon from '@mui/icons-material/Computer'
 import DnsIcon from '@mui/icons-material/Dns'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
+import LaptopMacIcon from '@mui/icons-material/LaptopMac'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+} from '@mui/material'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import TopBar from '../../components/TopBar'
 import { getApiPrefix } from '../../apis/apiPrefix'
 import { readTokenExpMs } from '../../utils/auth'
 import {
@@ -61,6 +68,20 @@ function getShellWsUrl(token: string, hostId?: number | null): string {
 }
 
 
+const SERVER_SHELL_LABEL = '서버 쉘 (Docker)'
+const MAC_HOST_LABEL = '내 Mac'
+const MAC_HOST_ADDRESS = 'host.docker.internal'
+
+const MAC_HOST_PRESET: ServerHostPayload = {
+  label: MAC_HOST_LABEL,
+  host: MAC_HOST_ADDRESS,
+  port: 22,
+  user: '',
+  ssh_key: '',
+  password: '',
+  sort_no: -1,
+}
+
 const EMPTY_FORM: ServerHostPayload = {
   label: '',
   host: '',
@@ -69,6 +90,10 @@ const EMPTY_FORM: ServerHostPayload = {
   ssh_key: '',
   password: '',
   sort_no: 0,
+}
+
+function isMacHost(h: ServerHost): boolean {
+  return h.label === MAC_HOST_LABEL || h.host === MAC_HOST_ADDRESS
 }
 
 export default function ServerRemotePage() {
@@ -285,6 +310,14 @@ export default function ServerRemotePage() {
     setManageOpen(true)
   }
 
+  const openMacHostDialog = () => {
+    setEditingHost(null)
+    setFormMode('create')
+    setForm({ ...MAC_HOST_PRESET })
+    setFormError(null)
+    setManageOpen(true)
+  }
+
   const openEditDialog = (h: ServerHost) => {
     setEditingHost(h)
     setFormMode('edit')
@@ -330,13 +363,14 @@ export default function ServerRemotePage() {
     }
   }
 
+  const hasMacHost = hosts.some(isMacHost)
+
   const selectedLabel = selectedHostId == null
-    ? '로컬 쉘'
+    ? SERVER_SHELL_LABEL
     : hosts.find((h) => h.id === selectedHostId)?.label || `호스트 #${selectedHostId}`
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{
@@ -403,8 +437,15 @@ export default function ServerRemotePage() {
               disabled={connected}
             >
               <MenuItem value="">
-                <ComputerIcon sx={{ mr: 1, fontSize: 18 }} />
-                로컬 쉘
+                <Tooltip
+                  title="백엔드 API가 실행 중인 Docker 컨테이너 쉘입니다. Mac 터미널이 아닙니다."
+                  placement="right"
+                >
+                  <Stack direction="row" alignItems="center" component="span" sx={{ width: '100%' }}>
+                    <ComputerIcon sx={{ mr: 1, fontSize: 18 }} />
+                    {SERVER_SHELL_LABEL}
+                  </Stack>
+                </Tooltip>
               </MenuItem>
               {hosts.map((h) => (
                 <MenuItem key={h.id} value={String(h.id)}>
@@ -466,17 +507,79 @@ export default function ServerRemotePage() {
         fullWidth
         PaperProps={{ sx: { zIndex: 1400 } }}
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
           SSH 호스트 관리
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={openCreateDialog}
-          >
-            추가
-          </Button>
+          <Stack direction="row" spacing={0.5}>
+            <Button
+              size="small"
+              startIcon={<LaptopMacIcon />}
+              onClick={openMacHostDialog}
+            >
+              내 Mac 추가
+            </Button>
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={openCreateDialog}
+            >
+              추가
+            </Button>
+          </Stack>
         </DialogTitle>
         <DialogContent dividers>
+          {!hasMacHost && (
+            <Alert
+              severity="info"
+              sx={{ mb: 2 }}
+              action={
+                <Button color="inherit" size="small" onClick={openMacHostDialog}>
+                  등록하기
+                </Button>
+              }
+            >
+              Mac 터미널에 접속하려면 SSH 호스트로 Mac을 등록하세요. Docker 환경에서는 호스트 주소를{' '}
+              <strong>{MAC_HOST_ADDRESS}</strong>로 설정합니다.
+            </Alert>
+          )}
+
+          <Accordion disableGutters elevation={0} sx={{ mb: 2, border: '1px solid', borderColor: 'divider' }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack direction="row" alignItems="center" spacing={0.75}>
+                <HelpOutlineIcon fontSize="small" color="action" />
+                <Typography variant="body2">Mac SSH 접속 설정 가이드</Typography>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 0 }}>
+              <Stack spacing={1.25} component="ol" sx={{ m: 0, pl: 2.5 }}>
+                <Typography component="li" variant="body2">
+                  Mac에서 <strong>시스템 설정 → 일반 → 공유 → 원격 로그인</strong>을 켭니다.
+                </Typography>
+                <Typography component="li" variant="body2">
+                  터미널에서 SSH 키를 생성합니다:{' '}
+                  <Box component="code" sx={{ fontSize: 12, bgcolor: 'action.hover', px: 0.75, py: 0.25, borderRadius: 0.5 }}>
+                    ssh-keygen -t ed25519 -f ~/.ssh/psj_web_app -N ""
+                  </Box>
+                </Typography>
+                <Typography component="li" variant="body2">
+                  공개키를 Mac에 등록합니다:{' '}
+                  <Box component="code" sx={{ fontSize: 12, bgcolor: 'action.hover', px: 0.75, py: 0.25, borderRadius: 0.5 }}>
+                    cat ~/.ssh/psj_web_app.pub &gt;&gt; ~/.ssh/authorized_keys
+                  </Box>
+                </Typography>
+                <Typography component="li" variant="body2">
+                  <strong>내 Mac 추가</strong> 버튼으로 호스트를 등록하고, 사용자명에 Mac 로그인 계정을 입력합니다.
+                </Typography>
+                <Typography component="li" variant="body2">
+                  SSH 개인키 칸에 <Box component="code" sx={{ fontSize: 12 }}>~/.ssh/psj_web_app</Box> 파일 내용을 붙여넣습니다.
+                  (패스워드 방식도 가능)
+                </Typography>
+                <Typography component="li" variant="body2">
+                  등록 후 접속 대상에서 <strong>{MAC_HOST_LABEL}</strong>을 선택하고 연결합니다.
+                </Typography>
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+
           {hosts.length === 0 ? (
             <Typography color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
               저장된 호스트가 없습니다. "추가" 버튼으로 등록하세요.
@@ -531,7 +634,11 @@ export default function ServerRemotePage() {
           {formMode !== 'none' && (
             <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
               <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
-                {editingHost ? '호스트 수정' : '새 호스트 등록'}
+                {editingHost
+                  ? '호스트 수정'
+                  : form.host === MAC_HOST_ADDRESS
+                    ? 'Mac SSH 호스트 등록'
+                    : '새 호스트 등록'}
               </Typography>
               <Stack spacing={1.5}>
                 <TextField
@@ -548,7 +655,7 @@ export default function ServerRemotePage() {
                     size="small"
                     value={form.host}
                     onChange={(e) => setForm({ ...form, host: e.target.value })}
-                    placeholder="192.168.0.110"
+                    placeholder={MAC_HOST_ADDRESS}
                     sx={{ flex: 2 }}
                   />
                   <TextField
@@ -566,7 +673,7 @@ export default function ServerRemotePage() {
                     size="small"
                     value={form.user}
                     onChange={(e) => setForm({ ...form, user: e.target.value })}
-                    placeholder="ddiotwcms"
+                    placeholder="parksungju"
                     sx={{ flex: 1 }}
                   />
                   <TextField

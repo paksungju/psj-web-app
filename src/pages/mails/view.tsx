@@ -7,7 +7,6 @@ import {
   Button,
   Divider,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import { fetchAppDataByIdApi } from '../../apis/appApi'
 import { fetchMailsApi, markMailReadApi, fetchMailAttachmentsApi, type ApiMailAttachment } from '../../apis/mailApi'
 
@@ -194,7 +193,6 @@ export default function MailViewPage() {
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Typography color="text.secondary">로딩 중...</Typography>
       </Box>
     )
@@ -203,7 +201,6 @@ export default function MailViewPage() {
   if (!data) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Paper elevation={0} sx={{ p: 3, borderRadius: 3 }}>
           <Typography color="text.secondary" sx={{ mb: 2 }}>
             메일을 찾을 수 없습니다.
@@ -218,7 +215,6 @@ export default function MailViewPage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

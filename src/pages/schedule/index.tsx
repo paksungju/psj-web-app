@@ -17,7 +17,6 @@ import {
   TextField,
   MenuItem,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import {
   createAppDataApi,
   deleteAppDataBatchApi,
@@ -227,7 +226,6 @@ export default function SchedulePage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper elevation={0} sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper' }}>
         <Typography variant="h5" sx={{ mb: 1.5, fontWeight: 600 }}>
           할일 목록

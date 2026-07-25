@@ -14,7 +14,6 @@ import {
   Stack,
   Checkbox,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import {
   fetchAppDataListApi,
   deleteAppDataBatchApi,
@@ -142,7 +141,6 @@ export default function TrainingPage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

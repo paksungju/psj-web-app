@@ -10,7 +10,6 @@ import {
 } from '@mui/material'
 import { type Editor } from 'ckeditor5'
 import RichTextEditor from '../../components/RichTextEditor'
-import TopBar from '../../components/TopBar'
 import { sendMailApi } from '../../apis/mailApi'
 
 /** "Name <email>" 형식에서 이메일만 추출 */
@@ -52,7 +51,6 @@ export default function MailFormPage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

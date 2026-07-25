@@ -14,7 +14,6 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import {
   createPaidInfoApi,
   deletePaidInfoApi,
@@ -241,7 +240,6 @@ export default function PaidInfoPage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

@@ -11,7 +11,6 @@ import {
   IconButton,
   Link,
 } from '@mui/material'
-import TopBar from '../../../components/TopBar'
 import { fetchAppDataByIdApi, deleteAppDataApi, type ApiAppData } from '../../../apis/appApi'
 import InfoBoardCategorySidebar, {
   INFO_BOARD_LAYOUT_SX,
@@ -110,7 +109,6 @@ export function AppDataViewPage({
   if (loading) {
     return (
       <Box sx={INFO_BOARD_PAGE_SX}>
-        <TopBar />
         <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
           <Box sx={INFO_BOARD_LAYOUT_SX}>
             <InfoBoardCategorySidebar
@@ -128,7 +126,6 @@ export function AppDataViewPage({
   if (!data) {
     return (
       <Box sx={INFO_BOARD_PAGE_SX}>
-        <TopBar />
         <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
           <Box sx={INFO_BOARD_LAYOUT_SX}>
             <InfoBoardCategorySidebar
@@ -174,7 +171,6 @@ export function AppDataViewPage({
 
   return (
     <Box sx={INFO_BOARD_PAGE_SX}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={INFO_BOARD_PAPER_SX}

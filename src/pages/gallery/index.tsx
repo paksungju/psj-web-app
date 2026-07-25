@@ -32,7 +32,6 @@ import AppsIcon from '@mui/icons-material/Apps'
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew'
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos'
 import CloseIcon from '@mui/icons-material/Close'
-import TopBar from '../../components/TopBar'
 import {
   uploadImageApi,
   fetchImagesByDataApi,
@@ -349,7 +348,6 @@ export default function GalleryPage() {
         p: 3,
       }}
     >
-      <TopBar />
       {isDeleting && (
         <Box
           sx={{

@@ -12,7 +12,6 @@ import {
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { type Editor } from 'ckeditor5'
 import RichTextEditor from '../../../components/RichTextEditor'
-import TopBar from '../../../components/TopBar'
 import {
   fetchAppDataByIdApi,
   createAppDataApi,
@@ -614,7 +613,6 @@ export function AppDataFormPage({
   if (loading) {
     return (
       <Box sx={INFO_BOARD_PAGE_SX}>
-        <TopBar />
         <Paper
           elevation={0}
           sx={INFO_BOARD_PAPER_SX}
@@ -636,7 +634,6 @@ export function AppDataFormPage({
 
   return (
     <Box sx={INFO_BOARD_PAGE_SX}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={INFO_BOARD_PAPER_SX}

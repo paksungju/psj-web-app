@@ -17,7 +17,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material'
-import TopBar from '../../../components/TopBar'
+import PageShell from '../../../components/PageShell'
 
 /** OG 메타 기반 링크 썸네일 미리보기 데이터 */
 interface OgPreviewData {
@@ -300,15 +300,7 @@ export default function FavoritePage() {
     })
   }, [favorites])
   return (
-    <Box
-      sx={{
-        flexGrow: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        p: 3,
-      }}
-    >
-      <TopBar />
+    <PageShell>
       {isDeleting && (
         <Box
           sx={{
@@ -325,13 +317,7 @@ export default function FavoritePage() {
         </Box>
       )}
 
-      <Box
-        sx={{
-          flexGrow: 1,
-          overflow: 'auto',
-        }}
-      >
-        <Paper
+      <Paper
         elevation={0}
         sx={{
           p: 3,
@@ -773,8 +759,7 @@ export default function FavoritePage() {
         </Menu>
 
       </Paper>
-      </Box>
-    </Box>
+    </PageShell>
   )
 }
 

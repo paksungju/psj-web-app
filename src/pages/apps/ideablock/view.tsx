@@ -15,7 +15,6 @@ import {
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import TopBar from '../../../components/TopBar'
 import {
   fetchAppDataByIdApi,
   fetchAppDataListApi,
@@ -321,7 +320,6 @@ export default function IdeaBlockViewPage() {
   if (loading) {
     return (
       <Box sx={INFO_BOARD_PAGE_SX}>
-        <TopBar />
         <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
           <Box sx={INFO_BOARD_LAYOUT_SX}>
             <ContentListSidebar selectedContentId={null} currentDataId={null} />
@@ -335,7 +333,6 @@ export default function IdeaBlockViewPage() {
   if (!data) {
     return (
       <Box sx={INFO_BOARD_PAGE_SX}>
-        <TopBar />
         <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
           <Box sx={INFO_BOARD_LAYOUT_SX}>
             <ContentListSidebar selectedContentId={null} currentDataId={null} />
@@ -377,7 +374,6 @@ export default function IdeaBlockViewPage() {
 
   return (
     <Box sx={INFO_BOARD_PAGE_SX}>
-      <TopBar />
       <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
       <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
           아이디어블록 보기

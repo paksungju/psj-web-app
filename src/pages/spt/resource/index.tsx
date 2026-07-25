@@ -34,7 +34,6 @@ import AppsIcon from '@mui/icons-material/Apps'
 import CloseIcon from '@mui/icons-material/Close'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import TopBar from '../../../components/TopBar'
 import { uploadImageApiWithProgress } from '../../../apis/imageApi'
 import {
   createSptResourceApi,
@@ -355,7 +354,6 @@ export default function SptResourcePage() {
 
   return (
     <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}>
-      <TopBar />
       {(loading || isDeleting) && (
         <Box
           sx={{

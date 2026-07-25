@@ -210,12 +210,11 @@ export default function TopBar() {
       ref={barRef}
       sx={{
         position: 'relative',
-        zIndex: (t) => t.zIndex.appBar,
-        mt: { xs: -1.5, sm: -2, md: -3 },
-        mx: { xs: -1.5, sm: -2, md: -3 },
-        mb: 4,
         flexShrink: 0,
+        width: '100%',
+        zIndex: (t) => t.zIndex.appBar,
         overflow: 'hidden',
+        bgcolor: 'background.paper',
         pointerEvents: isMobile && barHidden ? 'none' : 'auto',
       }}
     >

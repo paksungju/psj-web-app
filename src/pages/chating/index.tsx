@@ -7,7 +7,6 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
-import TopBar from '../../components/TopBar'
 import { randomUUID } from '../../utils/randomUUID'
 import { AUTH_TOKEN_KEY, clearAuthSession } from '../../utils/auth'
 
@@ -1015,11 +1014,6 @@ export default function ChatPage() {
       background: '#ffffff',
       fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
     }}>
-      {/* 최상단바 */}
-      <div style={{ borderBottom: '1px solid #e5e7eb', background: '#ffffff', flexShrink: 0 }}>
-        <TopBar />
-      </div>
-
       {/* 📌 사실 저장 토스트 알림 */}
       {savedFactToast && (
         <div style={{

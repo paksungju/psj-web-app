@@ -8,6 +8,7 @@ import {
 import { Navigate, Route, Routes } from 'react-router-dom'
 import MenuIcon from '@mui/icons-material/Menu'
 import Sidebar from '../components/Sidebar'
+import TopBar from '../components/TopBar'
 import HomeScreen from '../components/HomeScreen'
 import ChatPage from '../pages/chating/index'
 import MemoPage from '../pages/apps/memo'
@@ -107,15 +108,23 @@ function AppShell({
         )}
         <Box
           sx={{
-            flexGrow: 1,
+            flex: 1,
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'auto',
+            overflow: 'hidden',
             mt: isMobile ? '64px' : 0,
           }}
         >
-          <Routes>
+          <TopBar />
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflow: 'auto',
+            }}
+          >
+            <Routes>
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/" element={<HomeScreen selectedMenu={selectedMenu} />} />
             <Route path="/search" element={<SearchPage />} />
@@ -184,6 +193,7 @@ function AppShell({
             <Route path="/training/:id/form" element={<TrainingFormPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Box>
         </Box>
       </Box>
     </Box>

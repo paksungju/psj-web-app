@@ -24,7 +24,6 @@ import {
   IconButton,
 } from '@mui/material'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
-import TopBar from '../../components/TopBar'
 import {
   createAccountApi,
   fetchAccountsApi,
@@ -286,7 +285,6 @@ export default function AccountsPage() {
         p: { xs: 1.5, sm: 2, md: 3 },
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

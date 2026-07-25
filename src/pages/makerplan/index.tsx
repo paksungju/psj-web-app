@@ -24,7 +24,6 @@ import EngineeringIcon from '@mui/icons-material/Engineering'
 import ScienceIcon from '@mui/icons-material/Science'
 import ConstructionIcon from '@mui/icons-material/Construction'
 import RateReviewIcon from '@mui/icons-material/RateReview'
-import TopBar from '../../components/TopBar'
 import {
   fetchAppDataListApi,
   deleteAppDataBatchApi,
@@ -190,7 +189,6 @@ export default function MakerPlanPage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

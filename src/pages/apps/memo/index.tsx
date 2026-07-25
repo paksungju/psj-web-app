@@ -23,7 +23,6 @@ import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import CloseIcon from '@mui/icons-material/Close'
 import CheckIcon from '@mui/icons-material/Check'
 import VisibilityIcon from '@mui/icons-material/Visibility'
-import TopBar from '../../../components/TopBar'
 import SendIcon from '@mui/icons-material/Send'
 import {
   fetchAppDataListApi,
@@ -676,7 +675,6 @@ export default function ChatPage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

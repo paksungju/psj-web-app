@@ -12,7 +12,6 @@ import {
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { type Editor } from 'ckeditor5'
 import RichTextEditor from '../../../components/RichTextEditor'
-import TopBar from '../../../components/TopBar'
 import {
   fetchAppDataByIdApi,
   createAppDataApi,
@@ -618,7 +617,6 @@ export default function IdeaBlockFormPage() {
   if (loading) {
     return (
       <Box sx={INFO_BOARD_PAGE_SX}>
-        <TopBar />
         <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
           <Box sx={INFO_BOARD_LAYOUT_SX}>
             <ContentListSidebar
@@ -634,7 +632,6 @@ export default function IdeaBlockFormPage() {
 
   return (
     <Box sx={INFO_BOARD_PAGE_SX}>
-      <TopBar />
       <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
         <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
           {isEdit ? '아이디어블록 수정' : isReply ? '블록 등록' : '컨텐츠 등록'}

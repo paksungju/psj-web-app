@@ -11,7 +11,6 @@ import {
   IconButton,
   Link,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import { fetchAppDataByIdApi, deleteAppDataApi, type ApiAppData } from '../../apis/appApi'
 import { fetchFilesByDataApi, type ApiFile } from '../../apis/fileApi'
 import CloseIcon from '@mui/icons-material/Close'
@@ -101,7 +100,6 @@ export default function TrainingViewPage() {
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Paper elevation={0} sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper', width: '50%' }}>
           <Typography color="text.secondary">로딩 중...</Typography>
         </Paper>
@@ -112,7 +110,6 @@ export default function TrainingViewPage() {
   if (!data) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Paper elevation={0} sx={{ p: 3, borderRadius: 3, backgroundColor: 'background.paper', width: '50%' }}>
           <Typography color="text.secondary" sx={{ mb: 2 }}>
             데이터를 찾을 수 없습니다.
@@ -149,7 +146,6 @@ export default function TrainingViewPage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

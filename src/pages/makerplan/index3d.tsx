@@ -30,7 +30,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
-import TopBar from '../../components/TopBar'
 import {
   fetchAppDataListApi,
   fetchAppDataByIdApi,
@@ -369,7 +368,6 @@ function MakerPlan3dDetail({ dataId }: { dataId: number }) {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{
@@ -734,7 +732,6 @@ function MakerPlan3dList() {
 
   return (
     <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 3 }}>
-      <TopBar />
       {(loading || busy) && (
         <Box
           sx={{

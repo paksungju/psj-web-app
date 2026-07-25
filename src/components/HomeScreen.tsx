@@ -4,7 +4,6 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import CalendarPage from '../pages/schedule/calendar'
-import TopBar from './TopBar'
 import { createAppDataApi, deleteAppDataApi, fetchAppDataListApi, type ApiAppData, type ApiAppPayload, updateAppDataApi } from '../apis/appApi'
 import { fetchCodesByParentApi } from '../apis/codesApi'
 import { randomUUID } from '../utils/randomUUID'
@@ -416,8 +415,6 @@ export default function HomeScreen({ selectedMenu }: HomeScreenProps) {
       }}
     >
       {/* 상단 공통 검색/빠른 이동 바 */}
-      <TopBar />
-
        {/* --------------------------- 캘린더  --------------------------- */}
       <Paper
         elevation={0}

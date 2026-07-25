@@ -19,7 +19,6 @@ import {
 } from '@mui/material'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
-import TopBar from '../../../components/TopBar'
 import {
   fetchAppDataListApi,
   deleteAppDataApi,
@@ -362,7 +361,6 @@ export default function IdeaBlockPage() {
 
   return (
     <Box sx={INFO_BOARD_PAGE_SX}>
-      <TopBar />
       <Paper elevation={0} sx={INFO_BOARD_PAPER_SX}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
           아이디어블록

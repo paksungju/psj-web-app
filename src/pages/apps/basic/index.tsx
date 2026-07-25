@@ -16,7 +16,6 @@ import {
   List,
   ListItemButton,
 } from '@mui/material'
-import TopBar from '../../../components/TopBar'
 import {
   fetchAppDataListApi,
   deleteAppDataBatchApi,
@@ -148,7 +147,6 @@ export default function AppConfigsPage() {
 
   return (
     <Box sx={INFO_BOARD_PAGE_SX}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={INFO_BOARD_PAPER_SX}

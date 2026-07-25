@@ -15,7 +15,6 @@ import {
   Checkbox,
   CircularProgress,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import { fetchMailsApi, importMailsApi, deleteMailsApi, type ApiMail } from '../../apis/mailApi'
 import Alert from '@mui/material/Alert'
 
@@ -187,7 +186,6 @@ export default function MailsPage() {
         p: 3,
       }}
     >
-      <TopBar />
       {isDeleting && (
         <Box
           sx={{

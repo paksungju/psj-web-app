@@ -21,7 +21,6 @@ import RateReviewIcon from '@mui/icons-material/RateReview'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { type Editor } from 'ckeditor5'
 import RichTextEditor from '../../components/RichTextEditor'
-import TopBar from '../../components/TopBar'
 import {
   fetchAppDataByIdApi,
   fetchAppDataListApi,
@@ -578,7 +577,6 @@ export default function MakerPlanFormPage() {
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-        <TopBar />
         <Typography color="text.secondary">로딩 중...</Typography>
       </Box>
     )
@@ -613,7 +611,6 @@ export default function MakerPlanFormPage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

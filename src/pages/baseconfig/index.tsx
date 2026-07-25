@@ -14,7 +14,6 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import {
   createBaseConfigApi,
   deleteBaseConfigApi,
@@ -223,7 +222,6 @@ export default function BaseConfigPage() {
         p: 3,
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

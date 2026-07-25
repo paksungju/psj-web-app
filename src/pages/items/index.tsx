@@ -30,7 +30,6 @@ import MenuIcon from '@mui/icons-material/Menu'
 import AppsIcon from '@mui/icons-material/Apps'
 import SearchIcon from '@mui/icons-material/Search'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
-import TopBar from '../../components/TopBar'
 import {
   createAppDataApi,
   deleteAppDataApi,
@@ -860,7 +859,6 @@ export default function ItemsPage() {
         p: { xs: 2, sm: 2, md: 3 },
       }}
     >
-      <TopBar />
       <Paper
         elevation={0}
         sx={{

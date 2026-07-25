@@ -6,7 +6,6 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material'
-import TopBar from '../../components/TopBar'
 import { fetchServerStatusApi, fetchCpuUsageApi, fetchMemoryUsageApi, formatBytes, type DiskUsage } from '../../apis/serverApi'
 import StorageIcon from '@mui/icons-material/Storage'
 import MemoryIcon from '@mui/icons-material/Memory'
@@ -194,7 +193,6 @@ export default function ServerStatusPage() {
 
   return (
     <Box sx={{ flexGrow: 1, overflow: 'auto', p: 3 }}>
-      <TopBar />
       <Paper
         elevation={0}
         sx={{
