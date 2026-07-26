@@ -92,8 +92,47 @@ const EMPTY_FORM: ServerHostPayload = {
   sort_no: 0,
 }
 
+const MAX_TERM_DIM = 500
+const RESIZE_DEBOUNCE_MS = 80
+
 function isMacHost(h: ServerHost): boolean {
   return h.label === MAC_HOST_LABEL || h.host === MAC_HOST_ADDRESS
+}
+
+/** FitAddon이 0/Infinity 크기를 반환하면 xterm.resize가 브라우저를 멈추거나 크래시시킨다. */
+function safeFitTerminal(
+  term: Terminal,
+  fit: FitAddon,
+  hostEl: HTMLElement | null,
+): boolean {
+  if (!hostEl || !term.element) return false
+  if (hostEl.offsetWidth <= 0 || hostEl.offsetHeight <= 0) return false
+  try {
+    fit.fit()
+    const { cols, rows } = term
+    if (
+      !Number.isFinite(cols) ||
+      !Number.isFinite(rows) ||
+      cols <= 0 ||
+      rows <= 0
+    ) {
+      return false
+    }
+    if (cols > MAX_TERM_DIM || rows > MAX_TERM_DIM) {
+      term.resize(
+        Math.min(cols, MAX_TERM_DIM),
+        Math.min(rows, MAX_TERM_DIM),
+      )
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+function clampTermDim(n: number): number {
+  if (!Number.isFinite(n) || n <= 0) return 80
+  return Math.min(Math.max(Math.floor(n), 1), MAX_TERM_DIM)
 }
 
 export default function ServerRemotePage() {
@@ -102,6 +141,9 @@ export default function ServerRemotePage() {
   const fitRef = useRef<FitAddon | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const openedRef = useRef(false)
+  const writeChunksRef = useRef<Uint8Array[]>([])
+  const writeFlushRef = useRef<number | null>(null)
+  const resizeTimerRef = useRef<number | null>(null)
 
   const [connected, setConnected] = useState(false)
   const [status, setStatus] = useState('대기')
@@ -142,11 +184,52 @@ export default function ServerRemotePage() {
     setStatus('연결 종료')
   }, [])
 
+  const flushTermWrites = useCallback(() => {
+    const term = termRef.current
+    if (!term || writeChunksRef.current.length === 0) return
+
+    const chunks = writeChunksRef.current
+    writeChunksRef.current = []
+    if (chunks.length === 1) {
+      const single = chunks[0]
+      if (single) term.write(single)
+      return
+    }
+    let total = 0
+    for (const chunk of chunks) total += chunk.length
+    const merged = new Uint8Array(total)
+    let offset = 0
+    for (const chunk of chunks) {
+      merged.set(chunk, offset)
+      offset += chunk.length
+    }
+    term.write(merged)
+  }, [])
+
+  const queueTermWrite = useCallback(
+    (data: string | Uint8Array) => {
+      const bytes =
+        typeof data === 'string' ? new TextEncoder().encode(data) : data
+      writeChunksRef.current.push(bytes)
+      if (writeFlushRef.current != null) return
+      writeFlushRef.current = window.requestAnimationFrame(() => {
+        writeFlushRef.current = null
+        flushTermWrites()
+      })
+    },
+    [flushTermWrites],
+  )
+
   const sendResize = useCallback(() => {
     const term = termRef.current
+    const fit = fitRef.current
     const ws = wsRef.current
     if (!term || !ws || ws.readyState !== WebSocket.OPEN) return
-    ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
+
+    safeFitTerminal(term, fit!, termHostRef.current)
+    const cols = clampTermDim(term.cols)
+    const rows = clampTermDim(term.rows)
+    ws.send(JSON.stringify({ type: 'resize', cols, rows }))
   }, [])
 
   const connect = useCallback(() => {
@@ -192,31 +275,21 @@ export default function ServerRemotePage() {
     }
 
     ws.onmessage = (ev) => {
-      const t = termRef.current
-      if (!t) return
-      let text = ''
-      if (typeof ev.data === 'string') {
-        text = ev.data
-        t.write(ev.data)
-      } else if (ev.data instanceof ArrayBuffer) {
-        const bytes = new Uint8Array(ev.data)
-        text = new TextDecoder().decode(bytes)
-        t.write(bytes)
-      } else if (ev.data instanceof Blob) {
-        void ev.data.arrayBuffer().then((buf) => {
-          const bytes = new Uint8Array(buf)
-          const decoded = new TextDecoder().decode(bytes)
-          t.write(bytes)
-          if (decoded.includes('[인증 필요]')) {
-            setError('인증에 실패했습니다. 다시 로그인한 뒤 연결하세요.')
-            setStatus('인증 실패')
-          }
-        })
-        return
+      const handleBytes = (bytes: Uint8Array) => {
+        queueTermWrite(bytes)
+        const decoded = new TextDecoder().decode(bytes)
+        if (decoded.includes('[인증 필요]')) {
+          setError('인증에 실패했습니다. 다시 로그인한 뒤 연결하세요.')
+          setStatus('인증 실패')
+        }
       }
-      if (text.includes('[인증 필요]')) {
-        setError('인증에 실패했습니다. 다시 로그인한 뒤 연결하세요.')
-        setStatus('인증 실패')
+
+      if (typeof ev.data === 'string') {
+        handleBytes(new TextEncoder().encode(ev.data))
+      } else if (ev.data instanceof ArrayBuffer) {
+        handleBytes(new Uint8Array(ev.data))
+      } else if (ev.data instanceof Blob) {
+        void ev.data.arrayBuffer().then((buf) => handleBytes(new Uint8Array(buf)))
       }
     }
 
@@ -250,7 +323,7 @@ export default function ServerRemotePage() {
       }
       setStatus('연결 종료')
     }
-  }, [disconnect, sendResize, selectedHostId])
+  }, [disconnect, queueTermWrite, sendResize, selectedHostId])
 
   useEffect(() => {
     const host = termHostRef.current
@@ -260,18 +333,20 @@ export default function ServerRemotePage() {
       cursorBlink: true,
       fontSize: 14,
       fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      scrollback: 5000,
       theme: {
         background: '#0f172a',
         foreground: '#e2e8f0',
         cursor: '#38bdf8',
         selectionBackground: '#334155',
       },
-      convertEol: true,
+      // vi 등 전체 화면 TUI는 convertEol이 출력을 깨고 과도한 리렌더를 유발한다.
+      convertEol: false,
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.open(host)
-    fit.fit()
+    safeFitTerminal(term, fit, host)
     termRef.current = term
     fitRef.current = fit
 
@@ -282,17 +357,44 @@ export default function ServerRemotePage() {
       }
     })
 
-    const onResize = () => {
-      fit.fit()
-      sendResize()
+    term.onResize(({ cols, rows }) => {
+      const ws = wsRef.current
+      if (!ws || ws.readyState !== WebSocket.OPEN) return
+      ws.send(
+        JSON.stringify({
+          type: 'resize',
+          cols: clampTermDim(cols),
+          rows: clampTermDim(rows),
+        }),
+      )
+    })
+
+    const scheduleResize = () => {
+      if (resizeTimerRef.current != null) {
+        window.clearTimeout(resizeTimerRef.current)
+      }
+      resizeTimerRef.current = window.setTimeout(() => {
+        resizeTimerRef.current = null
+        safeFitTerminal(term, fit, host)
+        sendResize()
+      }, RESIZE_DEBOUNCE_MS)
     }
-    window.addEventListener('resize', onResize)
-    const ro = new ResizeObserver(onResize)
+    window.addEventListener('resize', scheduleResize)
+    const ro = new ResizeObserver(scheduleResize)
     ro.observe(host)
 
     return () => {
-      window.removeEventListener('resize', onResize)
+      window.removeEventListener('resize', scheduleResize)
       ro.disconnect()
+      if (resizeTimerRef.current != null) {
+        window.clearTimeout(resizeTimerRef.current)
+        resizeTimerRef.current = null
+      }
+      if (writeFlushRef.current != null) {
+        window.cancelAnimationFrame(writeFlushRef.current)
+        writeFlushRef.current = null
+      }
+      writeChunksRef.current = []
       disconnect()
       term.dispose()
       termRef.current = null
@@ -493,7 +595,8 @@ export default function ServerRemotePage() {
               height: 'min(70vh, 720px)',
               minHeight: 480,
               '& .xterm': { height: '100%' },
-              '& .xterm-viewport': { overflowY: 'auto' },
+              // vi 등 alternate buffer TUI는 스크롤 가능 viewport가 레이아웃 루프를 유발한다.
+              '& .xterm-viewport': { overflow: 'hidden' },
             }}
           />
         </Paper>

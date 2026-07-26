@@ -32,6 +32,8 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: '/Users/parksungju/psj-data-space/nginx/html/dist',
       assetsDir: 'assets', // 정적 에셋 폴더 (기본값: 'assets')
+      // xterm 6 + esbuild minify가 TUI(vi 등) 런타임 오류를 유발하는 경우가 있음
+      target: 'esnext',
     },
   }
 })
