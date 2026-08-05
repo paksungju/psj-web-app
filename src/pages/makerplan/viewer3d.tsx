@@ -164,14 +164,17 @@ export default function MakerPlan3dViewerPage() {
 
       setLoading(true)
       setError(null)
-      const url = URL.createObjectURL(file)
 
       try {
+        // blob URL + loadAsync는 텍스처/외부 리소스를 페이지 경로로 요청해 404가 난다.
+        // File 내용을 직접 parse 한다.
         if (ext === 'glb' || ext === 'gltf') {
-          const gltf = await new GLTFLoader().loadAsync(url)
+          const buf = await file.arrayBuffer()
+          const gltf = await new GLTFLoader().parseAsync(buf, '')
           loadObject(gltf.scene, file.name)
         } else if (ext === 'stl') {
-          const geometry = await new STLLoader().loadAsync(url)
+          const buf = await file.arrayBuffer()
+          const geometry = new STLLoader().parse(buf)
           geometry.computeVertexNormals()
           const mesh = new THREE.Mesh(
             geometry,
@@ -179,7 +182,8 @@ export default function MakerPlan3dViewerPage() {
           )
           loadObject(mesh, file.name)
         } else {
-          const obj = await new OBJLoader().loadAsync(url)
+          const text = await file.text()
+          const obj = new OBJLoader().parse(text)
           obj.traverse((child) => {
             if (child instanceof THREE.Mesh && !child.material) {
               child.material = new THREE.MeshStandardMaterial({
@@ -195,7 +199,6 @@ export default function MakerPlan3dViewerPage() {
         console.error(e)
         setError('파일을 불러오지 못했습니다. 형식을 확인해 주세요.')
       } finally {
-        URL.revokeObjectURL(url)
         setLoading(false)
       }
     },

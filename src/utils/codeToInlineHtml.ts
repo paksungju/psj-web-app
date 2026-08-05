@@ -27,14 +27,17 @@ export const CODE_LANGUAGES = [
  * 그래서 코드 블록을 pre/code가 아닌 div + table 구조로 만든다.
  * 줄 번호를 별도 셀에 두면 코드만 드래그해서 복사할 수 있다.
  */
+const CODE_FONT_FAMILY =
+  '"D2Coding","D2Coding ligature",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace'
+
 const WRAPPER_STYLE = [
-  'background:#f6f8fa',
-  'border:1px solid #d0d7de',
+  'background:#0d1117',
+  'border:1px solid #30363d',
   'border-radius:6px',
   'padding:12px',
   'margin:12px 0',
   'overflow-x:auto',
-  'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace',
+  `font-family:${CODE_FONT_FAMILY}`,
   'font-size:13px',
   'line-height:1.6',
 ].join(';')
@@ -44,10 +47,10 @@ const TABLE_STYLE = 'border-collapse:collapse;border:none;width:100%'
 const LINE_NO_STYLE = [
   'padding:0 12px 0 0',
   'border:none',
-  'border-right:1px solid #afb8c1',
+  'border-right:1px solid #30363d',
   'text-align:right',
   'vertical-align:top',
-  'color:#8c959f',
+  'color:#6e7681',
   'white-space:nowrap',
   'width:1%',
   'user-select:none',

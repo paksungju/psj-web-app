@@ -38,8 +38,9 @@ import {
   deleteAppDataApi,
   type ApiAppData,
 } from '../../apis/appApi'
-import { uploadFileApiWithProgress, deleteFilesApi } from '../../apis/fileApi'
+import { uploadFileApiWithProgress, deleteFilesApi, fetchFilesByDataApi } from '../../apis/fileApi'
 import { uploadImageApiWithProgress } from '../../apis/imageApi'
+import { getApiPrefix } from '../../apis/apiPrefix'
 
 const APP_ID = 11
 const MENU_CD = 'makerplan_3d'
@@ -47,24 +48,43 @@ const SAVE_PATH = 'makerplan/3d'
 const ACCEPTED = '.glb,.gltf,.stl,.obj'
 const ACCEPTED_EXTS = ['glb', 'gltf', 'stl', 'obj']
 
-const API_BASE = 'http://impsj.net/api/v1'
+function apiV1Base(): string {
+  const prefix = getApiPrefix()
+  return prefix ? `${prefix}/api/v1` : '/api/v1'
+}
 
 function toAbsoluteFileUrl(url: string): string {
   if (!url) return ''
   if (url.startsWith('http')) return url
-  return `http://impsj.net${url.startsWith('/') ? url : `/${url}`}`
+  const prefix = getApiPrefix()
+  let origin = prefix
+  if (!origin) {
+    // /data 정적 파일은 Vite 프록시 대상이 아니므로 원격 호스트 사용
+    if (url.startsWith('/data/')) {
+      origin = 'http://impsj.net'
+    } else if (typeof window !== 'undefined') {
+      origin = window.location.origin
+    } else {
+      origin = 'http://impsj.net'
+    }
+  }
+  return `${origin}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 /**
  * 로드 후보 URL 목록.
- * file_id 다운로드 엔드포인트(실제 디스크에서 스트리밍)를 사용한다.
- * (정적 /data 경로는 마운트/저장경로에 따라 404가 날 수 있어 사용하지 않는다.)
+ * 1) /data 정적 경로(file_url) — 서버 디스크와 DB file_path 불일치 시에도 동작
+ * 2) file_id 다운로드 API — 폴백
  */
-function resolveModelSources(fileId: number | null): string[] {
-  if (fileId != null && !Number.isNaN(fileId)) {
-    return [`${API_BASE}/files/${fileId}/download`]
+function resolveModelSources(fileId: number | null, fileUrl?: string): string[] {
+  const sources: string[] = []
+  if (fileUrl?.trim()) {
+    sources.push(toAbsoluteFileUrl(fileUrl.trim()))
   }
-  return []
+  if (fileId != null && !Number.isNaN(fileId)) {
+    sources.push(`${apiV1Base()}/files/${fileId}/download`)
+  }
+  return sources
 }
 
 function formatFileSize(bytes: number): string {
@@ -312,24 +332,45 @@ type ModelItem = {
   filesize: number
   ext: string
   fileId: number | null
+  fileUrl: string
 }
 
 /**
- * extra 필드 매핑 (목록 API는 extra_1~5, 백엔드 update도 extra_1~5 만 저장):
+ * extra 필드 매핑:
  *  extra_1 = 썸네일 이미지 URL (목록 카드용)
  *  extra_2 = 파일명, extra_3 = 크기, extra_4 = 확장자, extra_5 = file_id
+ *  extra_6 = file_url (/data/... 정적 경로)
  */
 function rowToItem(row: ApiAppData): ModelItem {
   const fileId = row.extra_5 ? Number(row.extra_5) || null : null
+  const fileUrl = row.extra_6?.trim() ?? ''
   return {
     dataId: row.data_id ?? 0,
     title: row.ap_subject?.trim() || row.extra_2?.trim() || '(제목 없음)',
-    sources: resolveModelSources(fileId),
+    sources: resolveModelSources(fileId, fileUrl),
     thumbUrl: toAbsoluteFileUrl(row.extra_1 ?? ''),
     fileName: row.extra_2 ?? '',
     filesize: Number(row.extra_3 ?? 0) || 0,
     ext: (row.extra_4 ?? '').toLowerCase(),
     fileId,
+    fileUrl,
+  }
+}
+
+async function enrichItemWithFileUrl(item: ModelItem, dataId: number): Promise<ModelItem> {
+  if (item.fileUrl || !item.fileId) return item
+  try {
+    const { items } = await fetchFilesByDataApi({ menuCd: MENU_CD, dataId, limit: 20 })
+    const file = items.find((f) => f.file_id === item.fileId) ?? items[0]
+    if (!file?.file_url) return item
+    return {
+      ...item,
+      fileUrl: file.file_url,
+      sources: resolveModelSources(item.fileId, file.file_url),
+    }
+  } catch (e) {
+    console.error('3D 파일 URL 조회 실패:', e)
+    return item
   }
 }
 
@@ -352,7 +393,7 @@ function MakerPlan3dDetail({ dataId }: { dataId: number }) {
           setNotFound(true)
           return
         }
-        setItem(rowToItem(row))
+        setItem(await enrichItemWithFileUrl(rowToItem(row), dataId))
       } catch (e) {
         console.error('3D 상세 로드 실패:', e)
         if (!cancelled) setNotFound(true)
@@ -606,6 +647,7 @@ function MakerPlan3dList() {
         extra_3: String(res.filesize || pickedFile.size),
         extra_4: extOf(res.file_name || pickedFile.name),
         extra_5: String(res.file_id ?? ''),
+        extra_6: res.file_url || '',
       })
 
       setUploadOpen(false)
@@ -627,12 +669,13 @@ function MakerPlan3dList() {
     setUploading(true)
     setUploadProgress(0)
     try {
-      // 기존 값 유지 (백엔드 update는 extra_1~5 전체를 덮어쓰므로 유지값을 다시 전달)
+      // 기존 값 유지 (백엔드 update는 extra 필드를 덮어쓰므로 유지값을 다시 전달)
       let extra1 = editingRow?.extra_1 ?? '' // 썸네일
       let extra2 = editingRow?.extra_2 ?? '' // 파일명
       let extra3 = editingRow?.extra_3 ?? '' // 크기
       let extra4 = editingRow?.extra_4 ?? '' // 확장자
       let extra5 = editingRow?.extra_5 ?? '' // file_id
+      let extra6 = editingRow?.extra_6 ?? '' // file_url
 
       // 3D 파일 교체 (선택)
       if (pickedFile) {
@@ -663,6 +706,7 @@ function MakerPlan3dList() {
         extra3 = String(res.filesize || pickedFile.size)
         extra4 = extOf(res.file_name || pickedFile.name)
         extra5 = String(res.file_id ?? '')
+        extra6 = res.file_url || ''
       }
 
       // 썸네일 변경 (교체/제거)
@@ -684,6 +728,7 @@ function MakerPlan3dList() {
         extra_3: extra3,
         extra_4: extra4,
         extra_5: extra5,
+        extra_6: extra6,
       })
 
       setUploadOpen(false)

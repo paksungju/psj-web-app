@@ -39,6 +39,7 @@ import MailFormPage from '../pages/mails/mailForm'
 import MailViewPage from '../pages/mails/view'
 import ServerStatusPage from '../pages/server'
 import ServerRemotePage from '../pages/server/remote'
+import DbManagerPage from '../pages/server/db_manager'
 import CodesPage from '../pages/codes'
 import BaseConfigPage from '../pages/baseconfig'
 import UsersPage from '../pages/users'
@@ -47,6 +48,10 @@ import SptContentCatePage from '../pages/spt/contentCate'
 import TrainingPage from '../pages/training'
 import TrainingFormPage from '../pages/training/form'
 import TrainingViewPage from '../pages/training/view'
+import DrawPage from '../pages/draw'
+import DrawWritePage from '../pages/draw/write'
+import StockPredictionPage from '../pages/stock-prediction'
+import StockPredictionDetailPage from '../pages/stock-prediction/detail'
 
 interface AppRoutesProps {
   selectedMenu: string
@@ -181,6 +186,7 @@ function AppShell({
             <Route path="/mails/:dataId" element={<MailViewPage />} />
             <Route path="/server" element={<ServerStatusPage />} />
             <Route path="/server/remote" element={<ServerRemotePage />} />
+            <Route path="/server/db-manager" element={<DbManagerPage />} />
             <Route path="/codes" element={<CodesPage />} />
             <Route path="/spt/cate" element={<SptContentCatePage />} />
             <Route path="/spt/resources" element={<SptResourcePage />} />
@@ -191,6 +197,12 @@ function AppShell({
             <Route path="/training/form" element={<TrainingFormPage />} />
             <Route path="/training/:id" element={<TrainingViewPage />} />
             <Route path="/training/:id/form" element={<TrainingFormPage />} />
+            <Route path="/draw/write/:id" element={<DrawWritePage />} />
+            <Route path="/draw/write" element={<DrawWritePage />} />
+            <Route path="/draw" element={<DrawPage />} />
+            <Route path="/draw/:id" element={<DrawPage />} />
+            <Route path="/stock-prediction" element={<StockPredictionPage />} />
+            <Route path="/stock-prediction/:id" element={<StockPredictionDetailPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           </Box>

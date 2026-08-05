@@ -110,8 +110,10 @@ export default function AppRoutes() {
       location.pathname.startsWith('/apps/files/')
     ) {
       setSelectedMenu('files')
-    } else if (location.pathname === '/makerplan/3d') {
+    } else if (location.pathname === '/makerplan/3d' || location.pathname.startsWith('/makerplan/3d/')) {
       setSelectedMenu('makerplan-3d')
+    } else if (location.pathname === '/draw' || location.pathname.startsWith('/draw/')) {
+      setSelectedMenu('makerplan-sketch')
     } else if (
       location.pathname === '/apps/ideablock' ||
       location.pathname.startsWith('/apps/ideablock/')
@@ -135,12 +137,16 @@ export default function AppRoutes() {
       setSelectedMenu('spt-home')
     } else if (location.pathname === '/server/remote') {
       setSelectedMenu('server-remote')
+    } else if (location.pathname === '/server/db-manager') {
+      setSelectedMenu('db-manager')
     } else if (location.pathname === '/server' || location.pathname.startsWith('/server/')) {
       setSelectedMenu('server-status')
     } else if (location.pathname === '/codes' || location.pathname.startsWith('/codes/')) {
       setSelectedMenu('codes')
     } else if (location.pathname === '/baseconfig') {
       setSelectedMenu('baseconfig')
+    } else if (location.pathname === '/stock-prediction' || location.pathname.startsWith('/stock-prediction/')) {
+      setSelectedMenu('stock-prediction')
     } else if (location.pathname === '/users' || location.pathname.startsWith('/users/')) {
       setSelectedMenu('users')
     } else if (location.pathname === '/paid' || location.pathname.startsWith('/paid/')) {
@@ -191,6 +197,8 @@ export default function AppRoutes() {
       navigate('/makerplan')
     } else if (menuId === 'makerplan-3d') {
       navigate('/makerplan/3d')
+    } else if (menuId === 'makerplan-sketch') {
+      navigate('/draw')
     } else if (menuId === 'ideablock') {
       navigate('/apps/ideablock')
     } else if (menuId === 'mails') {
@@ -211,10 +219,14 @@ export default function AppRoutes() {
       navigate('/server')
     } else if (menuId === 'server-remote') {
       navigate('/server/remote')
+    } else if (menuId === 'db-manager') {
+      navigate('/server/db-manager')
     } else if (menuId === 'codes') {
       navigate('/codes')
     } else if (menuId === 'baseconfig') {
       navigate('/baseconfig')
+    } else if (menuId === 'stock-prediction') {
+      navigate('/stock-prediction')
     } else if (menuId === 'users') {
       navigate('/users')
     } else if (menuId === 'paid') {

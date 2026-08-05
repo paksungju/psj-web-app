@@ -32,7 +32,7 @@ import {
   type MatcherObjectPattern,
 } from 'ckeditor5'
 import 'ckeditor5/ckeditor5.css'
-import 'highlight.js/styles/github.css'
+import 'highlight.js/styles/github-dark.css'
 import {
   codeToInlineHtml,
   extractCodeFromBlock,
@@ -336,8 +336,23 @@ export default function RichTextEditor({
               placeholder="코드를 붙여넣어 주세요."
               value={codeText}
               onChange={(e) => setCodeText(e.target.value)}
-              InputProps={{
-                sx: { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace', fontSize: 13 },
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: '#0d1117',
+                  '& fieldset': { borderColor: '#30363d' },
+                  '&:hover fieldset': { borderColor: '#484f58' },
+                  '&.Mui-focused fieldset': { borderColor: '#58a6ff' },
+                },
+                '& .MuiInputBase-input': {
+                  fontFamily: '"D2Coding", "D2Coding ligature", ui-monospace, Menlo, Consolas, monospace',
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                  color: '#e6edf3',
+                },
+                '& .MuiInputBase-input::placeholder': {
+                  color: '#6e7681',
+                  opacity: 1,
+                },
               }}
             />
             {codeText.trim() !== '' && (
@@ -346,7 +361,13 @@ export default function RichTextEditor({
                   미리보기
                 </Typography>
                 <Box
-                  sx={{ maxHeight: 240, overflow: 'auto' }}
+                  sx={{
+                    maxHeight: 240,
+                    overflow: 'auto',
+                    borderRadius: 1,
+                    border: '1px solid #30363d',
+                    bgcolor: '#0d1117',
+                  }}
                   dangerouslySetInnerHTML={{ __html: codeHtml }}
                 />
               </Box>

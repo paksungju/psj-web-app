@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': { ...proxyOpts, ws: true },
         '/ask-stream': { ...proxyOpts, ws: true },
+        '/ask-gemma-stream': { ...proxyOpts, ws: true },
         '/ask-claude': proxyOpts,
         '/ask-gemini': proxyOpts,
         '/rag': proxyOpts,

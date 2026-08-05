@@ -31,6 +31,9 @@ function createNewSessionId(): string {
 // ── 타입 ──────────────────────────────────────────────────────────────────────
 type ModelType = 'qwen' | 'claude' | 'gemini' | 'gemma'
 
+/** Ollama 로컬 Qwen 모델 태그 (ask-stream ?model=) */
+const QWEN_OLLAMA_MODEL = 'qwen3.6:35b-a3b-q8_0'
+
 interface ChatMessage {
   id: number
   author: 'me' | 'bot'
@@ -48,6 +51,22 @@ interface SessionItem {
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 const CHAT_PAGE_SIZE = 10
+const CHAT_MODEL_KEY = 'chat_selected_model'
+
+function isModelType(value: string | null | undefined): value is ModelType {
+  return value === 'qwen' || value === 'claude' || value === 'gemini' || value === 'gemma'
+}
+
+function loadStoredModel(): ModelType {
+  if (typeof localStorage === 'undefined') return 'qwen'
+  const stored = localStorage.getItem(CHAT_MODEL_KEY)
+  return isModelType(stored) ? stored : 'qwen'
+}
+
+function storeModel(model: ModelType): void {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(CHAT_MODEL_KEY, model)
+}
 
 function chatAuthHeaders(): Record<string, string> {
   if (typeof localStorage === 'undefined') return {}
@@ -193,13 +212,17 @@ function BotAvatar({ model }: { model?: ModelType }) {
 // ── 모델 선택 토글 ─────────────────────────────────────────────────────────────
 function ModelToggle({ model, onChange }: { model: ModelType; onChange: (m: ModelType) => void }) {
   const order: ModelType[] = ['qwen', 'claude', 'gemini', 'gemma']
+  const handleChange = (next: ModelType) => {
+    storeModel(next)
+    onChange(next)
+  }
   return (
     <div style={{
       display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end',
       background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 10, padding: 3, gap: 2, maxWidth: 320,
     }}>
       {order.map((m) => (
-        <button key={m} onClick={() => onChange(m)} style={{
+        <button key={m} onClick={() => handleChange(m)} style={{
           padding: '5px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600,
           background: model === m ? MODEL_TAB_STYLE[m].activeBg : 'transparent',
           color: model === m ? '#fff' : '#6b7280',
@@ -643,7 +666,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
   const [hasMoreOlder, setHasMoreOlder] = useState(false)
-  const [model, setModel] = useState<ModelType>('qwen')
+  const [model, setModel] = useState<ModelType>(() => loadStoredModel())
   const [webSearch, setWebSearch] = useState(false)
   const [sessionId, setSessionId] = useState<string>(() => getOrCreateSessionId())
   const [sessions, setSessions] = useState<SessionItem[]>([])
@@ -906,7 +929,10 @@ export default function ChatPage() {
 
       try {
         const streamPath = model === 'gemma' ? 'ask-gemma-stream' : 'ask-stream'
-        const url = `${STREAM_BASE}/${streamPath}?topic=${encodeURIComponent(trimmed)}&session_id=${sid}&web_search=${useWebSearch}`
+        const ollamaModelParam = model === 'qwen'
+          ? `&ollama_model=${encodeURIComponent(QWEN_OLLAMA_MODEL)}`
+          : ''
+        const url = `${STREAM_BASE}/${streamPath}?topic=${encodeURIComponent(trimmed)}&session_id=${sid}&web_search=${useWebSearch}${ollamaModelParam}`
         const res = await fetch(url, { headers: chatAuthHeaders() })
         if (res.status === 401) {
           const detail = await readFastApiErrorDetail(res)
@@ -1134,7 +1160,7 @@ export default function ChatPage() {
                   {model === 'claude' ? 'Claude · Anthropic'
                     : model === 'gemini' ? 'Gemini · Google'
                     : model === 'gemma' ? 'Gemma 4 · oMLX'
-                    : 'Qwen 3.6 · Ollama'}
+                    : `Qwen 3.6 · ${QWEN_OLLAMA_MODEL}`}
                   {' · '}
                   <span title={`세션 ID: ${sessionId}`} style={{ color: '#9ca3af' }}>
                     #{sessionId.slice(0, 6)}
@@ -1170,14 +1196,14 @@ export default function ChatPage() {
               ? <EmptyState onSuggestion={(s) => sendMessage(s)} />
               : messages.map((msg) => <MessageBubble key={`${msg.id}-${msg.time}`} msg={msg} />)
             }
-            {loading && (
+            {/* {loading && (
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, padding: '0 4px' }}>
                 <BotAvatar model={model} />
                 <div style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: '18px 18px 18px 4px', padding: '10px 16px' }}>
                   <CircularProgress size={14} style={{ color: '#7c6af5' }} />
                 </div>
               </div>
-            )}
+            )} */}
             <div ref={bottomRef} style={{ height: 16 }} />
           </div>
 
@@ -1228,7 +1254,7 @@ export default function ChatPage() {
               {webSearch
                 ? '웹검색 ON · DuckDuckGo로 검색 후 답변에 반영됩니다'
                 : model === 'qwen'
-                  ? 'Qwen 3.6 · Ollama 로컬 · 웹검색 ON 시 검색만 외부 연동'
+                  ? `Qwen 3.6 · Ollama (${QWEN_OLLAMA_MODEL}) · 웹검색 ON 시 검색만 외부 연동`
                   : model === 'gemma'
                     ? 'Gemma 4 · oMLX 로컬'
                   : model === 'claude'

@@ -71,6 +71,7 @@ const menuItems: SidebarMenuItem[] = [
     children: [
       { id: 'makerplan-list', label: '메이커플랜' },
       { id: 'makerplan-3d', label: '3D 파일 뷰어' },
+      { id: 'makerplan-sketch', label: '스케치' },
       { id: 'ideablock', label: '아이디어블록' },
     ],
   },
@@ -81,7 +82,8 @@ const menuItems: SidebarMenuItem[] = [
     children: [{ id: 'my-finance-purchases', label: '구매내역' },
       { id: 'my-finance-assets', label: '자산관리' },
       { id: 'my-finance-subscriptions', label: '구독관리' },
-      { id: 'my-finance-expenses', label: '지출관리' }
+      { id: 'my-finance-expenses', label: '지출관리' },
+      { id: 'stock-prediction', label: '주가예측시스템' }
     ],
   },
   { id: 'apps/info', label: '정보관리', icon: <InfoIcon /> },
@@ -102,6 +104,7 @@ const menuItems: SidebarMenuItem[] = [
     children: [
       { id: 'server-status', label: '서버상태' },
       { id: 'server-remote', label: '원격제어' },
+      { id: 'db-manager', label: 'DB관리' },
     ],
   },
   {

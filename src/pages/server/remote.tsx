@@ -27,6 +27,8 @@ import AddIcon from '@mui/icons-material/Add'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SettingsIcon from '@mui/icons-material/Settings'
+import FullscreenIcon from '@mui/icons-material/Fullscreen'
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit'
 import ComputerIcon from '@mui/icons-material/Computer'
 import DnsIcon from '@mui/icons-material/Dns'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
@@ -137,6 +139,7 @@ function clampTermDim(n: number): number {
 
 export default function ServerRemotePage() {
   const termHostRef = useRef<HTMLDivElement | null>(null)
+  const shellRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
@@ -159,6 +162,7 @@ export default function ServerRemotePage() {
   const [formMode, setFormMode] = useState<'none' | 'create' | 'edit'>('none')
   const [form, setForm] = useState<ServerHostPayload>({ ...EMPTY_FORM })
   const [formError, setFormError] = useState<string | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const loadHosts = useCallback(async () => {
     try {
@@ -332,7 +336,7 @@ export default function ServerRemotePage() {
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 14,
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      fontFamily: '"D2Coding", "D2Coding ligature", Menlo, Monaco, "Courier New", monospace',
       scrollback: 5000,
       theme: {
         background: '#0f172a',
@@ -401,6 +405,29 @@ export default function ServerRemotePage() {
       fitRef.current = null
     }
   }, [disconnect, sendResize])
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => !prev)
+  }, [])
+
+  useEffect(() => {
+    document.body.style.overflow = isFullscreen ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isFullscreen])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const term = termRef.current
+      const fit = fitRef.current
+      if (term && fit && termHostRef.current) {
+        safeFitTerminal(term, fit, termHostRef.current)
+        sendResize()
+      }
+    }, 100)
+    return () => window.clearTimeout(timer)
+  }, [isFullscreen, sendResize])
 
   // ── 호스트 관리 ─────────────────────────────────────
 
@@ -562,11 +589,18 @@ export default function ServerRemotePage() {
               ))}
             </Select>
           </FormControl>
-          <Tooltip title="호스트 관리">
-            <IconButton onClick={() => setManageOpen(true)} disabled={connected}>
-              <SettingsIcon />
-            </IconButton>
-          </Tooltip>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Tooltip title="호스트 관리">
+              <IconButton onClick={() => setManageOpen(true)} disabled={connected}>
+                <SettingsIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={isFullscreen ? '전체 화면 종료' : '전체 화면'}>
+              <IconButton onClick={toggleFullscreen}>
+                {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </Stack>
 
         {error && (
@@ -576,6 +610,7 @@ export default function ServerRemotePage() {
         )}
 
         <Paper
+          ref={shellRef}
           variant="outlined"
           sx={{
             borderRadius: 2,
@@ -586,14 +621,45 @@ export default function ServerRemotePage() {
             minHeight: 480,
             position: 'relative',
             zIndex: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            ...(isFullscreen && {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              minHeight: '100vh',
+              zIndex: 1300,
+              borderRadius: 0,
+            }),
           }}
         >
+          {isFullscreen && (
+            <Tooltip title="전체 화면 종료">
+              <IconButton
+                onClick={toggleFullscreen}
+                size="small"
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  zIndex: 1,
+                  color: '#94a3b8',
+                  '&:hover': { color: '#e2e8f0', backgroundColor: 'rgba(255,255,255,0.08)' },
+                }}
+              >
+                <FullscreenExitIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           <Box
             ref={termHostRef}
             sx={{
               width: '100%',
-              height: 'min(70vh, 720px)',
-              minHeight: 480,
+              height: isFullscreen ? '100%' : 'min(70vh, 720px)',
+              flex: isFullscreen ? 1 : undefined,
+              minHeight: isFullscreen ? 0 : 480,
               '& .xterm': { height: '100%' },
               // vi 등 alternate buffer TUI는 스크롤 가능 viewport가 레이아웃 루프를 유발한다.
               '& .xterm-viewport': { overflow: 'hidden' },
